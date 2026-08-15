@@ -1,0 +1,143 @@
+/* Styling for the constructs preprocess.py + fcpp.lua emit as raw HTML:
+   theorem-like boxes, TikZ figures and captioned tables. */
+
+:root {
+    --fcpp-box-bg: #f7f9fc;
+    --fcpp-box-fg: inherit;
+    --fcpp-figure-bg: #ffffff;
+    --fcpp-caption-fg: #6b7280;
+
+    --fcpp-theorem: #1d4ed8;
+    --fcpp-lemma: #15803d;
+    --fcpp-proposition: #7e22ce;
+    --fcpp-corollary: #c2410c;
+    --fcpp-definition: #b91c1c;
+    --fcpp-example: #0e7490;
+    --fcpp-remark: #a16207;
+    --fcpp-proof: #b91c1c;
+}
+
+.coal, .navy, .ayu {
+    --fcpp-box-bg: rgba(255, 255, 255, 0.04);
+    --fcpp-caption-fg: #9ca3af;
+
+    --fcpp-theorem: #7aa2f7;
+    --fcpp-lemma: #6dbf76;
+    --fcpp-proposition: #c08cf0;
+    --fcpp-corollary: #f0925a;
+    --fcpp-definition: #f07171;
+    --fcpp-example: #4bb8cf;
+    --fcpp-remark: #d9b45a;
+    --fcpp-proof: #f07171;
+}
+
+/* ---------------------------------------------------------------- boxes -- */
+
+.fcpp-box {
+    margin: 1.4em 0;
+    padding: 0.8em 1em;
+    border: 1px solid var(--fcpp-accent);
+    border-left-width: 4px;
+    border-radius: 5px;
+    background: var(--fcpp-box-bg);
+}
+
+.fcpp-box > *:first-child { margin-top: 0; }
+.fcpp-box > *:last-child { margin-bottom: 0; }
+
+.fcpp-box-title {
+    margin: 0 0 0.5em 0;
+    font-weight: 600;
+    color: var(--fcpp-accent);
+}
+
+.fcpp-box-label { margin-right: 0.5em; }
+
+.fcpp-theorem     { --fcpp-accent: var(--fcpp-theorem); }
+.fcpp-lemma       { --fcpp-accent: var(--fcpp-lemma); }
+.fcpp-proposition { --fcpp-accent: var(--fcpp-proposition); }
+.fcpp-corollary   { --fcpp-accent: var(--fcpp-corollary); }
+.fcpp-definition  { --fcpp-accent: var(--fcpp-definition); }
+.fcpp-example     { --fcpp-accent: var(--fcpp-example); }
+.fcpp-remark      { --fcpp-accent: var(--fcpp-remark); }
+
+/* Proofs are set off by a rule rather than a full box, as in the PDF. */
+.fcpp-proof {
+    --fcpp-accent: var(--fcpp-proof);
+    border: none;
+    border-left: 3px solid var(--fcpp-accent);
+    border-radius: 0;
+    background: none;
+    padding: 0.2em 0 0.2em 1em;
+}
+
+.fcpp-proof .fcpp-box-title { font-style: italic; }
+
+/* -------------------------------------------------------------- figures -- */
+
+/* The SVGs are black line art, so they keep a light backdrop in dark themes. */
+figure {
+    margin: 1.6em auto;
+    text-align: center;
+}
+
+figure img {
+    max-width: 100%;
+    height: auto;
+    background: var(--fcpp-figure-bg);
+    border-radius: 4px;
+    padding: 0.6em;
+}
+
+figcaption {
+    margin-top: 0.5em;
+    font-size: 0.9em;
+    color: var(--fcpp-caption-fg);
+}
+
+/* Side-by-side subfigures, collapsing on narrow screens. */
+figure > figure {
+    display: inline-block;
+    vertical-align: top;
+    max-width: 48%;
+    margin: 0.5em 0.5%;
+}
+
+@media (max-width: 700px) {
+    figure > figure { max-width: 100%; display: block; }
+}
+
+/* --------------------------------------------------------------- tables -- */
+
+.content table {
+    display: table;
+    width: auto;
+    max-width: 100%;
+    margin: 1.2em 0;
+}
+
+.content table caption {
+    caption-side: top;
+    text-align: left;
+    font-size: 0.9em;
+    color: var(--fcpp-caption-fg);
+    padding-bottom: 0.4em;
+}
+
+/* Wide tables scroll instead of pushing the page sideways. */
+.content .table-wrapper { overflow-x: auto; }
+
+/* ----------------------------------------------------------------- misc -- */
+
+.fcpp-anchor {
+    display: block;
+    position: relative;
+    top: -2px;
+    visibility: hidden;
+}
+
+/* CJK body text reads better with a little more leading. */
+.content main { line-height: 1.75; }
+
+.content code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.content pre code { white-space: pre; }

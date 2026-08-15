@@ -1,0 +1,32 @@
+[book]
+title = "C++基础能力手册"
+authors = ["臧炫懿"]
+language = "zh-CN"
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+mathjax-support = true
+git-repository-url = "https://github.com/GMyhf/fcpp-for-dbd"
+additional-css = ["theme/custom.css"]
+additional-js = ["theme/zh-search.js"]
+no-section-label = false
+
+[output.html.print]
+enable = true
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.search]
+enable = true
+limit-results = 40
+use-boolean-and = true
+boost-title = 4
+boost-hierarchy = 2
