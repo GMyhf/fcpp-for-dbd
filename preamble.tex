@@ -1,0 +1,157 @@
+\usepackage{amsmath, amssymb, amsfonts, amsthm}
+\allowdisplaybreaks
+\usepackage[mode=buildnew]{standalone}
+
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\usepackage{enumitem}
+\setlist{nosep}
+\usepackage{booktabs}
+\usepackage[style=alphabetic, backend=biber, sorting=ynt]{biblatex}
+\usepackage{longtable,array,booktabs}
+\usepackage[table]{xcolor}
+
+\usepackage{multicol,multirow}
+\usepackage{subcaption}
+\usepackage{minted}
+\setminted{
+    baselinestretch=1.0,       % 行间距
+    frame=single,               % 边框样式
+    framesep=2mm,              % 边框间距
+    rulecolor=\color{black},   % 边框颜色
+    breaklines,           % 自动换行
+    breakanywhere=false,
+    showspaces=false,          % 不显示空格
+    showtabs=false,            % 不显示制表符
+    tabsize=4,                 % 制表符大小
+    autogobble=true,
+}
+\setmintedinline{bgcolor=yellow!20,breaklines,breakanywhere=false,autogobble=true}
+
+\usepackage{graphicx}
+\graphicspath{{images/}}
+% \usepackage{subfigure}
+\usepackage[most,minted,raster,fitting]{tcolorbox}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}   % 使用较新版本语法
+\usetikzlibrary{positioning, arrows, intersections, calc, fit, backgrounds,shapes.geometric}
+\usepgfplotslibrary{fillbetween}  % 用于填充区域
+\usepackage{empheq}
+
+\usepackage{hyperref}
+\usepackage{nameref}
+\usepackage{cleveref}
+
+\title{\Huge \bfseries C++基础能力手册}
+\author{臧炫懿}
+\date{\today}
+
+\addbibresource{references.bib}
+
+\renewcommand{\bibfont}{\footnotesize}
+
+\tcbset{
+    theorem-style/.style={
+        enhanced,
+        breakable,                 % 允许跨页
+        boxrule=0.4pt,             % 细边框，更素净
+        arc=3pt,                   % 圆角
+        left=6pt, right=6pt,
+        top=4pt, bottom=4pt,
+        fonttitle=\bfseries,       % 标题粗体
+        attach title to upper,     % 标题与内容在同一框中
+        after title={.\ },         % 标题后跟句点
+        % parbox=false,                % 不使用段落框
+    },
+    note-style/.style={
+        enhanced,
+        breakable,
+        boxrule=0.4pt,
+        arc=3pt,
+        left=6pt, right=6pt,
+        top=4pt, bottom=4pt,
+        fonttitle=\bfseries,
+        % parbox=false,
+    },
+    code-style/.style={
+        listing engine=minted,
+        % minted style=colorful,
+        boxrule=0.4pt,arc=3pt,left=6pt,right=6pt,top=4pt,bottom=4pt,
+        minted options={breaklines,autogobble},
+        listing only,
+        enhanced,breakable,
+    },
+    code-inline-style/.style={
+        fontupper=\ttfamily,nobeforeafter,tcbox raise base,arc=0pt,outer arc=0pt,
+        top=0.5pt,bottom=0.5pt,left=0mm,right=0mm,
+        leftrule=0pt,rightrule=0pt,toprule=0.4pt,bottomrule=0.4pt,boxsep=0.5mm,
+        % fit width from=\linewidth/3 to \linewidth
+    }
+}
+
+\newtcbtheorem[number within=section]{theorem}{定理}{%
+    theorem-style,
+    colback=blue!5,              % 极淡蓝背景
+    colframe=blue!50!black,      % 深蓝边框
+    coltitle=blue!50!black,      % 深蓝标题文字
+}{thm}
+
+\newtcbtheorem[use counter from=theorem]{lemma}{引理}{%
+    theorem-style,
+    colback=green!5,
+    colframe=green!50!black,
+    coltitle=green!50!black,
+}{lm}
+
+\newtcbtheorem[number within=section]{proposition}{命题}{%
+    theorem-style,
+    colback=purple!5,
+    colframe=purple!50!black,
+    coltitle=purple!50!black,
+}{prop}
+
+\newtcbtheorem[use counter from=theorem]{corollary}{推论}{%
+    theorem-style,
+    colback=orange!5,
+    colframe=orange!50!black,
+    coltitle=orange!50!black,
+}{cor}
+
+\newtcbtheorem[number within=section]{definition}{定义}{%
+    theorem-style,
+    colback=red!5,
+    colframe=red!50!black,
+    coltitle=red!50!black,
+}{def}
+
+\newtcbtheorem[number within=section]{example}{例}{%
+    theorem-style,
+    colback=cyan!5,
+    colframe=cyan!50!black,
+    coltitle=cyan!50!black,
+}{ex}
+
+\newtcolorbox{intro}{
+    note-style,
+    colback=green!5,
+    colframe=green!50!black,
+    coltitle=white,
+    title={本章当中，你将学到},
+}
+
+\tcolorboxenvironment{proof}{
+    blanker,breakable,left=5mm,
+    before skip=10pt,after skip=10pt,
+    borderline west={1mm}{0pt}{red},
+    % parbox=false
+}
+
+\newtcolorbox{remark}[1]{
+    note-style,
+    colback=yellow!5,
+    colframe=yellow!50!black,
+    coltitle=white,
+    title={#1}
+}

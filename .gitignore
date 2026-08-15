@@ -1,0 +1,10 @@
+_minted
+*.aux
+*.log
+*.bcf
+*.listing
+*.log
+*.out
+*.toc
+*.pdf
+*.run.xml

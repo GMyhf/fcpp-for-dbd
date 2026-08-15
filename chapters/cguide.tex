@@ -1,0 +1,811 @@
+\chapter{C语言入门}
+
+本章默认大家此前没有任何编程基础。
+
+虽然本书名为C++基础能力手册，但C是C++的基础，C++脱胎于C。虽然C已经和C++分道扬镳，但掌握C语言有助于更好地理解C++的语法和特性，尤其是C++的迭代器、智能指针等，这些东西不研究C语言是无法理解的。
+
+C是一种结构化的、过程式的编程语言，具有高效、灵活和可移植等特点。C语言广泛应用于系统软件开发、嵌入式系统、游戏开发等领域，著名软件如Linux内核、Git、GCC、Vim等简单但强大的软件都是用C语言编写的；Python的官方实现也是C语言（Cpython），很多高性能的Python库（如NumPy、Pandas、sklearn的大部分等）也是用C语言写的。
+
+\section{基本语法}
+
+\subsection{你的第一个C程序}
+
+\begin{minted}{c}
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+\end{minted}
+把这些内容敲到C文件中，保存，编译：
+\begin{minted}{bash}
+gcc main.c -o main
+\end{minted}
+这就是第一个C程序，编译器会把它编译成可执行文件 \verb|main| 。然后运行：
+\begin{minted}{bash}
+./main
+\end{minted}
+你会看到终端上输出了 \verb|Hello, World!| ，恭喜你，你已经成功编写并运行了第一个C程序。
+
+初学者写C的时候，记住以下事项：\textbf{程序有入口}；\textbf{先声明、再使用}；\textbf{算完告诉外面}。剩下的内容和说话一样，只不过用的是C的语法来表达。我们平常说话的句号，在C中是分号，表示一条语句的结束。
+
+逐行拆解上述示例代码：
+\begin{itemize}
+  \item  \mintinline{c}{#include <stdio.h>} 告诉编译器，我要用输入输出工具。
+  \item  \mintinline{c}{int main()} 是程序的入口函数，告诉电脑：程序从这里开始执行。 \mintinline{c}{int} 表示这个函数返回一个整数值。
+  \item  \mintinline{c}{printf("Hello, World!\n");} 把东西一股脑全送到屏幕上。 \verb|\n| 表示换行，如果不打换行符，输出完后光标会停在同一行，在Linux上会出现一些奇怪的问题。
+  \item  \mintinline{c}{return 0;} 返回0，告诉操作系统：一切OK。除非你知道你在做什么，否则这里不要改成其他数字。
+\end{itemize}
+
+\subsection{基本类型的变量}
+
+编程的本质是对数据进行操作，而经过操作的数据可能会变化。对于会变化的数据，我们称之为“变量”。而这些量也有不同的类型，例如“人数”肯定是整数，而“身高”则可能是一个普通的实数。因此，变量有不同的类型，C语言中常见的基本类型有：
+\begin{itemize}
+    \item 整数：\mintinline{c}{int}（最常用）、\mintinline{c}{long}、\mintinline{c}{short}、\mintinline{c}{unsigned int} 等。
+    \item 浮点数（普通实数）：\mintinline{c}{double}（最常用）、\mintinline{c}{float}。
+    \item 字符：\mintinline{c}{char}，用于存储单个字符。也可以用于存储整数。
+\end{itemize}
+
+\paragraph{变量的声明}
+在C中，变量要\textbf{先声明，再使用}。声明的方法是：先写类型，再写名字。这个“名字”是我们之后用来使用这个变量的标识符，类似别人提到“张三”就能对应到这个人的头上。这个使用在编程上被叫做\textbf{调用}。
+
+取名有一定的规则：不能用已经用过的名字，这个名字包括C保留的关键字和你自己已经定义过的名字；名字只能包含字母、数字和下划线，不能包括其他符号，且不能以数字开头；名字区分大小写，例如 \texttt{age} 和 \texttt{Age} 是两个不同的名字。
+\begin{minted}{c}
+    int age = 18; // 声明一个整数变量age，并初始化为18
+    double pi = 3.14; // 声明一个双精度浮点数变量pi，并初始化为3.14
+    char grade = 'A'; // 声明一个字符变量grade，并初始化为'A'
+
+    age = 19; // 把age的值改为19
+    pi = 3.14159; // 把pi的值改为3.14159
+\end{minted}
+
+上述 \mintinline{c}{int} 等三个排在第一个的关键字是变量的类型，分别表示整数、双精度浮点数、字符。在C中，变量类型不能在运行时改变，一旦声明则类型固定，因此C也被归类为“静态类型”语言。
+
+上述声明中的等号和数学中的等号\textbf{不相同}。在这里，等号的意思是“赋值”，指的是让等号左边的值变成等号右边的值。也就是说，等号右边的值会被计算出来，然后存储到等号左边的变量中。
+
+这些语言本质上都可以用自然语言解释为：我有个xx叫xx，它的值是xx。例如第一行代码：我有个整数叫age，它的值是18。如果之后我想用age这个变量，就可以直接写 \verb|age| ，不需要再次声明“我有个整数叫age”了。
+
+\paragraph{变量的运算}
+
+变量的运算过程和数学中的差不多，支持加、减、乘、除、取余数等运算符。
+\begin{minted}{c}
+    int a = 10;
+    int b = 3;
+    int c = a + b; // c的值为13
+    int d = a - b; // d的值为7
+    int e = a * b; // e的值为30
+    int f = a / b; // f的值为3，整数除法会舍弃小数部分
+    int g = a % b; // g的值为1
+    c = a * 2; // c的值为20，以前不管c是什么我都不要了
+    c += 5; // c的值为25，相当于c = c + 5
+\end{minted}
+在上述代码中，我们发现变量 \verb|c| 的值被改变了。因为变量是会变化的，所以我们可以在程序中多次使用同一个变量名，而每次使用时，它的值可能不同。
+
+变量的值也可以在声明时不确定（初始化），例如 \mintinline{c}{int a;} 这样也是可以的。如果在声明的时候不初始化局部变量的值，那么这个变量的初始值将会是一个\textbf{未定义行为}，这个值取决于内存中该位置之前存储的内容。我们不能依赖于这个，因此最好在声明变量的时候就给它赋初始值，例如 \mintinline{c}{int a = 0;}。
+
+\begin{definition}{未定义行为}{}
+    C和C++规定了一些代码的行为。有的行为是定义好的，例如 \mintinline{c}{int a = 0;} 这段代码的行为是定义好的，它会在内存中分配一个整数类型的空间，并将其初始化为0。绝大多数行为都是定义好的。
+
+    但C/C++并未对所有情形作出规定。如果标准不规定程序该怎样做，程序的实际运行结果可能随机。常见的未定义行为除了上面提到的使用未初始化局部变量，还有溢出、不明确的副作用、数组越界等。我们不能依赖于未定义行为，不同的平台、不同的编译器、不同的编译优化都可能产生很不同的结果，因此在编写C/C++程序时，应该尽量避免未定义行为的发生。
+\end{definition}
+
+让我们看看常见的运算符：
+\begin{itemize}
+    \item 双目运算符： \verb|+| 、 \verb|-| 、 \verb|*| 、 \verb|/| 、 \verb|%| 等，表示加、减、乘、除和取余数。
+    \item 单目运算符： \verb|+=| 、 \verb|-=| 、 \verb|*=| 、 \verb|/=| 等，表示对变量进行相应的运算并赋值。\mintinline{c}{a+=5;} 相当于 \mintinline{c}{a=a+5;}，其他以此类推。
+    \item 自增和自减： \verb|++| 和 \verb|--| ，分别表示变量的值加1和减1。例如 \mintinline{c}{a++;} 相当于 \mintinline{c}{a+=1;}。也可以写成\mintinline{c}{++a;}，两者的区别在于前者是先使用后自增，后者是先自增后使用。初学者完全可以认为\mintinline{c}{++a;}和\mintinline{c}{a++;}是一样的。
+\end{itemize}
+
+\begin{remark}{}
+    尽量单独使用 \verb|++| 和 \verb|--| ，一定不要将其与其他运算混在一起使用，更不要在同一个表达式中对同一个变量使用多次 \verb|++| 或 \verb|--| ，否则会出现未定义行为（副作用不明确）。例如， \verb|a=b++;| 虽然勉强可以但不推荐， \verb|a=b++ + b++;| 则是完全错误的，不同的编译器可能会给出不同的结果。
+
+    我个人从工程眼光上看来非常不建议弄出 \verb|a=b++;| 这类代码，虽然它是合法的，但它会让代码的可读性大大降低。我只建议单独使用它们。
+\end{remark}
+
+\paragraph{常变量}
+
+有些时候，我们希望变量的值在程序运行过程中不被改变，这时候可以使用\textbf{常变量}。在C中，可以使用 \verb|const| 关键字来声明常变量。例如：
+\begin{minted}{c}
+    const int MAX = 100; 
+    // MAX = 200; // 错误，不能修改常变量的值
+\end{minted}
+常变量通常用全大写字母来命名，以便区分普通变量。使用常变量可以提高代码的可读性和安全性，防止意外修改变量的值。
+
+\paragraph{变量类型的转换}
+
+有的时候，变量类型需要一定的转换。比如说：
+\begin{minted}{c}
+int a = 10;
+int b = 3;
+double c = a / b; // c的值为3.0，而不是期望的3.3333
+\end{minted}
+这是因为，在C/C++中，两个整数的除法是遵循截断原则的，也就是说，两个整数相除的结果仍然是一个整数，小数部分会被舍弃。因此， \verb|a / b| 的结果是3，而不是3.3333。为了得到正确的浮点数结果，我们需要将其中一个操作数转换为浮点数类型：
+\begin{minted}{c}
+double c = (double)a / b; // c的值为3.3333
+\end{minted}
+
+这就是变量类型的强制转换。
+
+除了显式强转，还有隐式转换，例如一开始的\mintinline{c}{double c = a / b;}，编译器会自动把 \verb|a / b| 的结果3转换为 \verb|double| 类型。
+
+\subsection{注释}
+
+注释是代码中的说明文字。它们会被编译器忽略，因此注释完全是给编写者和阅读者看的。
+
+在C中，注释有两种方法来写：
+\begin{itemize}
+  \item 单行注释：使用 \verb|//| ，例如 \mintinline{c}{// 这是一个单行注释} 。注释符号后面的内容会被编译器忽略，直到行尾为止。
+  \item 多行注释：使用 \mintinline{c}{/* ... */} ，例如 \mintinline{c}{/* 这是一个多行注释 */} 。两个注释符号之间的内容会被编译器忽略，可以跨越多行。
+\end{itemize}
+
+在阻止部分代码执行的时候，我们一般不习惯于直接删除这些代码，而是使用注释。这样做的好处是可以留痕，便于以后的恢复（解注释）；这就是程序员们常说的“注释掉”代码。在VS Code等编辑器中，常用的一键注释是 \verb|Ctrl+/| ，它会自动将光标所在的一行或多行代码注释掉。
+
+\subsection{输入、输出以及格式化}
+
+输入和输出是程序与外界进行交互的方式，朴素的编程中这一交互是通过终端进行的。
+
+在C中，常用的输入输出函数有 \mintinline{c}{printf} 和 \mintinline{c}{scanf} 。这两个函数都定义在 \mintinline{c}{stdio.h} 头文件中，因此在使用它们之前需要包含该头文件。
+
+\mintinline{c}{printf} 用于输出数据到终端，\mintinline{c}{scanf} 用于从终端读取输入数据。它们都支持格式化输出和输入，可以根据指定的格式字符串来控制数据的显示和读取方式。
+\begin{minted}{c}
+scanf("format_string", &arg1, &arg2, ...);
+printf("formatted_string", arg1, arg2, ...);
+\end{minted}
+要注意，输入这部分的 \verb|&| 不能省略，原因见下文\nameref{sec:pointer}。而输出则不能包含 \verb|&| ，原因同前。
+
+这个“格式字符串”（\mintinline{c}{format_string}）中可以包含普通字符和格式说明符。普通字符会原样输出，而格式说明符用于指定如何显示或读取对应的参数。有四种格式说明符：\mintinline{c}{%d}、\mintinline{c}{%f}、\mintinline{c}{%c} 和 \mintinline{c}{%s}，分别对应整数、浮点数、字符和字符串。
+
+在字符串中，除了格式说明符，还有控制字符。常用的控制字符有 \verb|\n| （换行）、 \verb|\t| （制表符）。这里的 \verb|\| 是\textbf{转义字符}，表示后面的字符有特殊含义，而不是它们本身的字面意思。
+
+转义字符也能把一些有特殊含义的特殊字符“转回去”，以其本来面目示人，包括 \verb|\"| （双引号本身）、 \verb|\'| （单引号本身）、 \verb|\| （反斜杠）、 \verb|\%| （百分号本身）、 \verb|\0| （字符串结束符）等。
+
+这是一个简单的输入输出示例：
+\begin{minted}{c}
+#include <stdio.h>
+
+int main(){
+    int age;
+    double height;
+    char grade;
+
+    printf("请输入年龄、身高和成绩（用空格分隔）：");
+    scanf("%d %lf %c", &age, &height, &grade);
+
+    printf("你输入的年龄是：%d\n", age);
+    printf("你输入的身高是：%.2f\n", height);
+    printf("你输入的成绩是：%c\n", grade);
+
+    return 0;
+}
+\end{minted}
+
+\begin{example}{加减运算}{}
+    请写一个程序，接受两个整数输入，并输出其和、差。
+    \begin{description}
+        \item[输入] 两个整数，空格分隔。
+        \item[输出] 两行。第一行输出两个整数的和，第二行输出两个整数的差。 
+    \end{description}
+    \tcblower
+    这个题目的答案是显然的，但需要让同学们知道这种题目应该以一种什么形式去写。
+    \begin{minted}{c}
+#include <stdio.h>
+
+int main() {
+    int a, b;
+    scanf("%d %d", &a, &b);
+    printf("%d\n", a + b);
+    printf("%d\n", a - b);
+    return 0;
+}
+    \end{minted}
+    这样，我们就完成了这个练习题的解答。看起来并不复杂。
+\end{example}
+
+\begin{remark}{自动评测平台}
+    自动评测平台分两类。一类是OJ式基于字符串的，另一类是Leet类基于函数或类的。
+
+    OJ式平台的评测是基于字符串匹配的。这类平台往往会要求我们写好一整个程序，并且程序的输入输出必须严格按照题目要求来进行。我们需要提交整个程序的代码，程序的输入输出必须严格按照题目要求来进行。OJ式评测平台会将我们的程序编译并运行，然后将程序的输出与标准答案进行比较，如果完全一致则判定为正确，否则判定为错误。代表性的OJ式评测平台有洛谷、Codeforces、AtCoder等。北京大学的两个OJ平台：编程网格、PKU OJ也是OJ式评测平台。
+
+    Leet类评测平台的评测是基于函数返回值或类调用的。这类平台大多不要求我们写好整个程序，但会要求我们写一个函数或类，将答案用 \verb|return| 返回，然后评测机会把这些代码嵌入到现有的代码中进行调用或探针实验，并将实验结果与标准答案进行比较，一致则判定为正确，否则判定为错误。代表性的Leet类评测平台有LeetCode、LintCode、Codewars等。
+\end{remark}
+
+\section{控制程序的执行过程}
+
+程序的执行未必是线性的。有的时候，我们希望根据一些只能在运行时确定的条件来决定程序的执行路径，这时候就需要用到条件语句和循环语句，合称\textbf{控制语句}。
+
+\subsection{条件表达式}
+
+一件事情最基本的情况肯定是“真”或者“假”。我们可以用\textbf{条件表达式}来表示这种“真”或“假”的情况。在C中，0或其他空的内容（如空指针 \verb|NULL| 、空字符串 \verb|""| ）表示假，而非0的整数或非空的内容表示真。条件表达式通常用于控制语句中，来决定程序的执行路径。
+
+但是实际情况未必仅用一个数就能解决问题，我们有时候要解决比较大小、判断相等、判断不等、判断是否大于或小于等问题，这时候就需要用到比较运算符。C语言中常用的比较运算符有 \verb|<| 、 \verb|>| 、 \verb|<=| 、 \verb|>=| 、 \verb|==| 和 \verb|!=| ，分别表示小于、大于、小于等于、大于等于、等于和不等于。比较运算符的结果是真（1）或假（0）。
+
+需要注意的是， \verb|==| 是比较运算符，而 \verb|=| 是赋值运算符，它们的含义完全不同。初学者容易混淆这两个运算符，因此在编写条件表达式时要特别小心，确保使用正确的运算符。
+
+C语言不允许连续的比较运算符，即不允许 \verb|a < b < c| 这样的写法。要实现类似的功能，需要使用逻辑运算符\mintinline{c}{&&}（逻辑与）和\mintinline{c}{||}（逻辑或）来组合多个条件表达式。例如，判断一个数是否在1到10之间，可以写成 \verb|(a > 1) && (a < 10)| 。
+
+此外，还可以使用逻辑非运算符 \verb|!| 来取反一个条件表达式。例如， \verb|!(a == 0)| 表示a不等于0（但往往不这么写，直接写 \verb|a != 0| 更清晰）。
+
+一般情况下，如果比较变量和字面值，我们习惯把字面值放在比较运算符的左边；其他则无所谓，一般遵循团队的编码规范。
+
+另外，与、或、非三个运算符有一定的运算顺序：先算非，再算与，最后算或。也就是说， \mintinline{c}{!a && b || c} 等价于 \mintinline{c}{((!a) && b) || c}。在工程上不仅不建议大量嵌套使用这些运算符，而且遇事不决可以加括号——括号可比记运算顺序靠谱得多了！
+
+\subsection{条件语句}
+
+\paragraph{if} if语句的基本结构如下：
+
+\begin{minted}{c}
+if (cond1) {
+    // codes...
+}
+else if (cond2) {
+    // codes...
+}
+else {
+    // codes...
+}
+\end{minted}
+
+上述 \verb|cond1| 和 \verb|cond2| 是条件表达式。如果 \verb|cond1| 为真，则执行第一个代码块；如果 \verb|cond1| 为假且 \verb|cond2| 为真，则执行第二个代码块；如果两个条件都为假，则执行最后一个代码块。
+
+在实际操作中，可以有任意多个 \verb|else if| 分支，也可以没有 \verb|else| 分支和 \verb|else if| 分支。条件语句可以嵌套使用，即在一个条件语句的代码块中再使用另一个条件语句。
+
+当条件语句只有一行时，可以省略大括号，写成以下两种形式之一：
+\begin{minted}{c}
+if (cond) expression;
+
+// or
+if (cond)
+    expression;
+\end{minted}
+这是因为C/C++将一对大括号内的所有代码会视作一个“块”，即一个整体。如果只有一行代码，那么这个“块”就只有这一行，因此可以省略大括号。老手熟练了以后，为了美观起见，通常会省略大括号，但初学者最好养成良好的习惯，始终使用大括号来明确代码块的范围。
+
+例如以下代码是一个不言而喻的实例。
+\begin{minted}{c}
+if (age < 18) 
+    printf("未成年人");
+else if (age < 60) 
+    printf("成年人");
+else 
+    printf("老年人");
+\end{minted}
+
+\begin{example}{闰年判断}{}
+    写一个程序，接受一个年份输入，并判断该年份是否为闰年。闰年的判断规则是：四年一闰、百年不闰、四百年再闰。
+    \begin{description}
+        \item[程序输入] 一个整数，表示年份。
+        \item[程序输出] 一行。输出“Yes”表示闰年，否则输出“No”。  
+    \end{description}
+    \tcblower
+    \begin{minted}{c}
+#include <stdio.h>
+int main() {
+    int year;
+    scanf("%d", &year);
+    if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) 
+        printf("Yes\n");
+    else
+        printf("No\n");
+    return 0;
+}
+    \end{minted}
+\end{example}
+
+\paragraph{switch} switch语句用于根据一个变量的值来选择执行不同的代码块。它的基本结构如下：
+\begin{minted}{c}
+switch (variable) {
+    case value1:
+        // codes...
+        break;
+    case value2:
+        // codes...
+        break;
+    default:
+        // codes...
+}
+\end{minted}
+上述 \verb|variable| 是一个变量， \verb|value1| 和 \verb|value2| 是可能的取值。根据 \verb|variable| 的值，程序会跳转到对应的 \verb|case| 标签处执行代码块。每个 \verb|case| 代码块通常以 \verb|break;| 语句结束，以防止执行到下一个代码块。如果没有匹配的标签，则执行 \verb|default| 。在实际操作中，可以有任意多个 \verb|case| 分支，也可以没有 \verb|default| 分支。switch语句也可以嵌套使用。
+\begin{minted}{c}
+switch (day) {
+    case 1:
+        printf("Monday"); break;
+    case 2:
+        printf("Tuesday"); break;
+    // ...
+}
+\end{minted}
+
+\paragraph{三元表达式} 三元表达式是一种更简洁的条件表达式，只用于两种情况的选择：
+\begin{minted}{c}
+    condition ? expression1 : expression2;
+\end{minted}
+如果 \verb|condition| 是真的，则整个表达式等同于 \verb|expression1| ，否则等同于 \verb|expression2| 。例如：
+\begin{minted}{c}
+    int max = (a > b) ? a : b; // 如果a大于b，则max为a，否则为b
+\end{minted}
+这段代码在语义上等价于
+\begin{minted}{c}
+    int max;
+    if (a > b) 
+        max = a;
+    else 
+        max = b;
+\end{minted}
+虽然三元表达式可以嵌套，但非常不建议嵌套。
+
+\subsection{循环语句}
+
+循环是一种重复执行某段代码的结构，直到满足某个条件为止。有的同学可能会问：为什么不直接把代码写多几遍就好了？这是因为有时候我们并不知道需要重复多少次，或者需要根据某个运行时才能确定的条件来决定是否继续循环，因此这时候就需要用到循环结构。
+
+\paragraph{while} \verb|while| 是最朴素的循环语句，基本结构如下：
+\begin{minted}{c}
+while (condition) {
+    // codes...
+}
+\end{minted}
+当 \verb|condition| 为真时，执行代码块中的内容，然后再次检查条件，直到条件为假时退出循环。如果 \verb|condition| 一开始就是假的，那么循环体内的代码将不会执行。比如说循环打印1到10的整数：
+\begin{minted}{c}
+int i = 1;
+while (i <= 10) {
+    printf("%d\n", i);
+    i++;
+}
+\end{minted}
+这里的大括号和 \verb|if| 语句中的大括号一样，表示循环体的范围。如果循环体只有一行代码，也可以省略大括号。
+
+\paragraph{do-while} \verb|do-while| 循环与 \verb|while| 循环类似，但它会先执行一次循环体，然后再检查条件。基本结构如下：
+\begin{minted}{c}
+do {
+    // codes...
+} while (condition);
+\end{minted}
+无论 \verb|condition| 是否为真，循环体内的代码至少会执行一次。比如说循环打印1到10的整数：
+\begin{minted}{c}
+int i = 1;
+do {
+    printf("%d\n", i);
+    i++;
+} while (i <= 10);
+\end{minted}
+这里的大括号不可省略，因为 \verb|do-while| 循环的语法要求循环体必须用大括号括起来。
+
+\paragraph{for} \verb|for| 循环是一种更紧凑的循环语句，接受三个表达式：
+\begin{minted}{c}
+for (initialization; condition; increment) {
+    // codes...
+}
+\end{minted}
+\verb|initialization| 用于初始化循环变量， \verb|condition| 用于判断是否继续循环， \verb|increment| 用于更新循环变量。比如说循环打印1到10的整数：
+\begin{minted}{c}
+for (int i = 1; i <= 10; i++) {
+    printf("%d\n", i);
+}
+\end{minted}
+\verb|for| 循环的三个参数都是可选的，比如初始化条件可以预先在外面定义好、条件可以不写（那样会无限循环下去）、增量也可以不写（那样循环变量不会改变，可能会导致无限循环）。同理， \verb|for| 循环体只有一行代码时也可以省略大括号。
+
+\paragraph{控制循环流程} 有的时候，我们希望遇到某些边界条件时立即结束循环，或跳过一次循环，直接进行下一次循环。这时候可以使用 \verb|break| 和 \verb|continue| 语句。
+
+\verb|break;| 用于立即跳出当前循环，不再执行循环体内剩余的代码，也不再进行条件判断，直接跳到循环体外的下一条语句。比如说：
+\begin{minted}{c}
+for (int i = 1; i <= 10; i++) {
+    if (i == 5) {
+        break; // 当i等于5时，跳出循环
+    }
+    printf("%d\n", i);
+}
+\end{minted}
+这段代码的输出是1到4，因为当i等于5时，循环被立即终止。
+
+\verb|continue;| 用于跳过当前循环的剩余代码，直接进行下一次循环的条件判断。比如说：
+\begin{minted}{c}
+for (int i = 1; i <= 10; i++) {
+    if (i == 5) {
+        continue; // 当i等于5时，跳过本次循环，直接进行下一次循环
+    }
+    printf("%d\n", i);
+}
+\end{minted}
+这段代码的输出是1到10，但不包括5，因为当i等于5时， \verb|continue;| 语句会跳过打印语句，直接进行下一次循环。
+
+\begin{example}{日期差值}{date-difference}
+    写一个程序，接受两个日期输入，计算两者之间差了多少天。不考虑闰年问题。
+    \begin{description}
+        \item[输入] 空格分隔的四个整数：m1、d1、m2、d2，分别表示第一个日期的月份和日期，以及第二个日期的月份和日期。假设输入的日期都是合法的。
+        \item[输出] 一个整数，表示两个日期之间的天数差。
+    \end{description}
+\tcblower
+这个答案会放在后面。同学们学到这里大概会用 \verb|switch| 来判断每个月的天数，然后用循环来计算总天数差。但这个语句太长，写起来很痛苦，也不美观。等到下节学了数组，再来写这个题目就会轻松很多。
+\end{example}
+
+\subsection{更复杂的控制流程}
+
+除了上述条件语句和循环语句外，C语言（尤其是古早C语言）还有一个杀手锏： \verb|goto| 。
+
+\verb|goto| ，顾名思义，就是“直接跳转”。它可以让程序无条件地跳转到指定的标签处执行代码。基本结构如下：
+\begin{minted}{c}
+goto label;
+// ...
+label:
+    // codes...
+\end{minted}
+\verb|label| 也可以起名为别的名字，但必须以冒号结尾；它也可以放在 \verb|goto| 的前面或后面。
+
+由此可见，使用 \verb|goto| 可以让程序的执行流程变得非常灵活，这也是古典C程序员喜欢它的原因。但后来，随着结构化编程的兴起， \verb|goto| 被认为会破坏程序的可读性和可维护性，因为人类并不能像机器一样跳来跳去。经过许多争论后，现代C语言编程中，通常认为 \verb|goto| 可以使用，但必须被严格限制。
+
+\section{复合数据结构}
+
+除了整数、浮点、字符，C语言还提供了更复杂的数据结构来组织、管理数据，以适应更复杂的需求。
+
+\subsection{数组} 数组，顾名思义，就是“一组按顺序排列的数据”。这组数据的类型应当是相同的。数组的每个元素都有一个索引（下标），用于标示每个元素在数组中的位置。数组的索引从0开始，到数组长度减1结束。
+
+数组的声明方式如下：
+\begin{minted}{c}
+type array_name[array_size];
+\end{minted}
+其中， \verb|type| 是数组中元素的类型， \verb|array_name| 是数组的名字， \verb|array_size| 是数组的长度（即元素的个数）。 \verb|array_size| 可以留空，但一般留空后必须在初始化中显式指定元素的个数。这是因为，在C语言中，数组的大小必须是一个能够在编译时确定的常量（如字面值，即直接写出来的数值）。
+
+\begin{minted}{c}
+    int numbers[5] = {10, 20, 30, 40, 50};
+    // 也可以写成 int numbers[] = {10, 20, 30, 40, 50};，编译器会根据初始化的元素个数自动推断数组长度为5。
+    int firstNumber = numbers[0]; // 访问第一个元素，值为10
+    int thirdNumber = numbers[2]; // 访问第三个元素，值为30
+    // int bad = numbers[5]; // 错误，数组越界访问，可能导致段错误或返回不可知的值
+    // int bad2 = numbers[-1]; // 错误，数组越界访问
+    numbers[1] = 25; // 修改第二个元素的值为25
+\end{minted}
+
+在C中，我们不能打印整个数组，而是需要通过循环来访问每个元素并打印出来。例如：
+\begin{minted}{c}
+for (int i = 0; i < 5; i++) {
+    printf("%d ", numbers[i]);
+}
+\end{minted}
+这个代码用了 \verb|for| 循环来遍历数组的每个元素，并使用 \verb|printf| 函数打印出来。注意，数组的索引从0开始，因此 \verb|numbers[0]| 是第一个元素， \verb|numbers[4]| 是最后一个元素。读者可以自行尝试，怎么使用 \verb|while| 循环来打印数组。
+
+\begin{remark}{}
+    变长数组（VLA）是C99标准引入的特性，允许数组的大小在运行时确定，但它在C11中被变为可选特性。容易引起误会的是，GCC 和 Clang++ 编译器提供了包含 VLA 的GNU 扩展语法，并且默认引入这些扩展，因此，VLA （例如 \verb|int n; int a[n];| ）在这些编译器下可行。反之，如果关闭这些扩展（通过添加 \verb|--pedantic-errors| 选项）或者非 GNU 兼容的编译器（如 MSVC），则 VLA 不可用。在实际操作中，我们不要去写VLA，它们可能会导致代码在不同编译器下的表现不一致。C中，我们需要使用数组但是长度不确定的时候，可以将数组开得大一些，例如题目有1000个元素，那么就开1000个元素或者稍多元素的数组。
+\end{remark}
+
+\begin{example}{}{}
+    \nameref{ex:date-difference}的答案如下：
+    \begin{minted}{c}
+#include <stdio.h>
+int main() {
+    int m1, d1, m2, d2;
+    scanf("%d %d %d %d", &m1, &d1, &m2, &d2);
+    int days_in_month[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; // 每个月的天数，索引0未使用
+    int total_days1 = 0, total_days2 = 0;
+    for (int i = 1; i < m1; i++) {
+        total_days1 += days_in_month[i];
+    }
+    total_days1 += d1;
+    for (int i = 1; i < m2; i++) {
+        total_days2 += days_in_month[i];
+    }
+    total_days2 += d2;
+    int difference = total_days2 - total_days1;
+    if (difference < 0) {
+        difference = -difference; // 取绝对值
+    }
+    printf("%d\n", difference);
+    return 0;
+}
+    \end{minted}
+
+    由上述代码可见，数组可以部分地代替 \verb|switch| 语句来存储每个月的天数，从而简化代码结构，提高可读性和可维护性。
+\end{example}
+
+\subsection{字符串（字符数组）}
+
+C风格的字符串自然可以使用字符数组来存储。但必须注意的是：字符串在C中是以 \verb|\0| （空字符）结尾的字符数组。也就是说，字符串的实际长度比我们看到的字符数多1，因为最后还有一个 \verb|\0| 作为结束标志。因此，声明字符串数组时，必须为这个结束符预留空间。例如：
+\begin{minted}{c}
+    char str[3] = "Hi"; // 字符串"Hi"占用3个字符：'H'、'i'和'\0'
+    // char str2[2] = "Hi"; // 错误，数组大小不足以存储字符串及其结尾的空字符
+\end{minted}
+为了简便起见，这里完全可以省略 \verb|str[3]| 中的3，编译器会根据初始化的字符串自动计算出所需的数组大小。
+
+在做题和实际工程中，很容易遗忘C风格字符串的结尾空字符，因此在操作字符串时要特别小心，确保有足够的空间来存储字符串及其结尾的空字符。
+
+另一种声明字符串的方式是使用字符指针：
+\begin{minted}{c}
+    const char *str = "Hello"; // str指向字符串常量"Hello"，它在内存中是只读的，不能修改
+\end{minted}
+需要注意的是，使用字符指针声明的字符串是指向字符串常量的指针，通常存储在只读数据段中，因此不能修改其内容。如果尝试修改字符串常量的内容，可能会导致未定义行为或程序崩溃。
+
+至于指针是个什么东西、它和字符数组又有什么关系，见\nameref{sec:pointer}。
+
+\subsection{结构体}
+
+结构体是一种用户自定义的数据类型，它允许我们将不同类型的数据组合在一起，形成一个整体。结构体的声明方式如下：
+\begin{minted}{c}
+struct StructName {
+    type member1;
+    type member2;
+    // ...
+};
+\end{minted}
+其中， \verb|StructName| 是结构体的名字， \verb|member1| 、 \verb|member2| 等是结构体的成员变量，它们可以是不同类型的数据。结构体可以用来表示一个实体的属性，例如一个学生的姓名、年龄和成绩。
+
+比如说，我们可以定义一个表示学生信息的结构体：
+\begin{minted}{c}
+struct Student {
+    int age;
+    double grade;
+}; 
+struct Student Alice; // 声明了一个Student类型的变量Alice
+Alice.age = 20; // 给Alice的age成员赋值为20
+Alice.grade = 90.5; // 给Alice的grade成员赋值为90.5
+\end{minted}
+容易看出，结构体可以使得代码更加清晰和有组织，尤其是在处理复杂数据时非常有用。
+
+这种写法有一个问题：每次都要写 \verb|struct Student| ，显得很麻烦。为了解决这个问题，我们可以使用 \verb|typedef| 来为结构体类型定义一个别名：
+\begin{minted}{c}
+typedef struct {
+    int age;
+    double grade;
+} Student; // 定义了一个名为Student的结构体类型
+Student Alice, Bob; // 现在可以直接使用Student来声明变量
+Alice.age = 20;
+Alice.grade = 90.5;
+\end{minted}
+
+\begin{example}{学生信息管理}{}
+  写一个程序，接受若干个学生的学号和成绩输入。随后再输入一个学号，输出该学生的成绩。如果该学号不存在，则输出“Not found”。
+    \begin{description}
+        \item[输入] 第一行是一个整数n，表示学生人数。接下来的n行，每行包含两个整数，分别表示一个学生的学号和成绩。
+        \item[输出] 一行。如果输入的学号存在，则输出该学生的成绩；否则输出“Not found”。
+    \end{description}
+    \tcblower
+    这个题目可以使用结构体来存储每个学生的信息，然后通过循环计算平均值。下面是一个可能的实现：
+    \begin{minted}{c}
+#include <stdio.h>
+typedef struct {
+    int id;
+    int grade;
+} Student;
+
+int main() {
+    int n;
+    scanf("%d", &n);
+    Student students[n];
+    for (int i = 0; i < n; i++) {
+        scanf("%d %d", &students[i].id, &students[i].grade);
+    }
+    int query_id;
+    scanf("%d", &query_id);
+    int found = 0;
+    for (int i = 0; i < n; i++) {
+        if (students[i].id == query_id) {
+            printf("%d\n", students[i].grade);
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        printf("Not found\n");
+    }
+    return 0;
+}
+    \end{minted}
+
+    这个例子展示了如何使用结构体来存储和管理学生信息，以及如何通过循环和条件判断来查找特定学生的信息。
+
+    实际上，不使用结构体也可以完成这个题目：维护两个数组，一个存储学号、一个存储成绩，保证同一个索引上的学号和成绩对应起来；然后通过循环，查找学号，得到索引，利用这个索引去查成绩。但这种方法不如使用结构体直观和易于维护，尤其是当数据结构变得更复杂时。
+\end{example}
+
+\subsection{联合体}
+
+联合体是另一种特殊的数据类型，它允许在同一内存位置存储不同类型的数据，但在任意时刻只能使用其中的一种类型。联合体的声明方式如下：
+\begin{minted}{c}
+union UnionName {
+    type member1;
+    type member2;
+    // ...
+};
+\end{minted}
+其中， \verb|UnionName| 是联合体的名字， \verb|member1| 、 \verb|member2| 等是联合体的成员变量，它们可以是不同类型的数据。
+
+\begin{minted}{c}
+union Data
+{
+    int intValue;      // 整数值
+    float floatValue;  // 浮点值
+};
+// 使用联合体
+union Data data; // 声明一个联合体变量data
+// 访问和修改联合体成员
+data.floatValue = 10.0; // 设置值
+
+printf("浮点值: %f\n", data.floatValue); // 访问浮点值
+printf("整数值: %d\n", data.intValue); // 访问整数值（未定义行为）
+\end{minted}
+由于联合体的所有成员共享同一块内存，因此在给一个成员赋值后，访问其他成员可能会导致未定义行为。联合体通常用于节省内存空间，尤其是在需要存储不同类型数据但不会同时使用它们的情况下。
+
+\section{函数}
+
+我们刚刚把所有的东西都堆在 \verb|main()| 里面。这引发了一些问题：代码的可复用性不强，维护起来比较困难。能不能把相似的操作打包成一个整体，方便调用呢？这就是函数\footnote{function其实应该翻译成“方法”会好一些。翻译成函数（数学上的“函数”就是这个词）总觉得不甚贴切。但我们沿用习惯，在C称“函数”，在C++称“方法”。}的作用。
+
+\subsection{定义函数}
+
+函数的定义包括函数名、参数列表、返回类型和函数体。基本结构如下：
+\begin{minted}{c}
+return_type function_name(parameter_list); // 函数原型
+
+return_type function_name(parameter_list) {
+    // function body
+    return something;
+} // 函数定义
+\end{minted}
+其中， \verb|return_type| 是函数的返回类型， \verb|function_name| 是函数的名字， \verb|parameter_list| 是函数的参数列表，函数体包含了函数的具体实现代码。
+
+函数原型是函数的声明，类似前文中的“有一个人叫张三”。如果函数的定义在调用之前，函数原型可以省略；如果函数的定义在调用之后，必须提供函数原型，以便编译器知道函数的存在和参数类型。
+
+\verb|return_type| 可以是任何基本数据类型，也可以是结构体、数组等复杂类型。如果函数不返回任何值，可以使用 \verb|void| 作为返回类型。除非 \verb|return_type| 是 \verb|void| ，否则函数必须使用 \verb|return| 语句返回一个与返回类型匹配的值。
+
+函数的参数列表可以为空，也可以包含多个参数，每个参数都需要指定类型和名称。
+
+C语言中限制：不能在一个函数内部定义另一个函数，也就是说，函数不能嵌套定义。
+
+一个函数可以在它之后被其他函数调用，也可以被自己调用（见\nameref{sec:recursion}）。函数的调用会将程序的执行流程转移到被调用函数的代码块中，执行完毕后再返回到调用点继续执行。
+
+例如：
+\begin{minted}{c}
+int max(int, int); // 函数原型
+
+int max(int a, int b) {
+    return (a > b) ? a : b;
+} // 函数定义
+
+int main() {
+    int x = 10, y = 20;
+    int maximum = max(x, y);
+    printf("最大值是: %d\n", maximum);
+    return 0;
+}
+\end{minted}
+在这个例子中，定义了一个名为 \verb|max| 的函数，它接受两个整数参数，并返回它们的最大值。然后在 \verb|main| 函数中调用 \verb|max| 函数，并将结果打印出来。
+
+在这个例子中，我们一般把 \verb|a| 和 \verb|b| 称为\textbf{形参}（parameter），而把 \verb|x| 和 \verb|y| 称为\textbf{实参}（argument）。形参是函数定义中使用的变量名，而实参是函数调用时传递给函数的实际值。形参和实参在函数调用时会进行匹配，实参的值会被传递给形参，供函数体内使用。
+
+\begin{example}{日期差：加强版}{}
+    写一个程序，接受两个日期输入，计算两者之间差了多少天。考虑闰年问题。
+    \begin{description}
+        \item[输入] 空格分隔的六个整数：y1、m1、d1、y2、m2、d2，分别表示第一个日期的年份、月份和日期，以及第二个日期的年份、月份和日期。假设输入的日期都是合法的。
+        \item[输出] 一个整数，表示两个日期之间的天数差。
+    \end{description}
+    提示：把判断闰年和计算日期差的功能封装成函数。这两个东西我们已经学会了，封装成函数就可以重复使用了。此外，把两个年份都和公元元年1月1日比较，是不错的思路。
+    \tcblower
+    这个题目的答案如下：
+    \begin{minted}{c}
+#include <stdio.h>
+int is_leap_year(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+int days_in_month(int year, int month) {
+    int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month == 2 && is_leap_year(year))
+        return 29;
+    else
+        return days[month];
+}
+int days_since_start(int year, int month, int day) {
+    int total_days = 0;
+    for (int y = 1; y < year; y++)
+        total_days += is_leap_year(y) ? 366 : 365;
+    for (int m = 1; m < month; m++)
+        total_days += days_in_month(year, m);
+    total_days += day;
+    return total_days;
+}
+int main() {
+    int y1, m1, d1, y2, m2, d2;
+    scanf("%d %d %d %d %d %d", &y1, &m1, &d1, &y2, &m2, &d2);
+    int days1 = days_since_start(y1, m1, d1);
+    int days2 = days_since_start(y2, m2, d2);
+    int difference = days2 - days1;
+    difference = difference < 0 ? -difference : difference; // 取绝对值
+    printf("%d\n", difference);
+    return 0;
+}
+    \end{minted}
+    由此可见，用函数来编程，帮助我们省去了许多代码。使用函数把需要反复用的功能封装起来，代码的可读性和可维护性都大大提高了。
+\end{example}
+
+\subsection{函数的递归调用}\label{sec:recursion}
+我们刚刚说过：函数可以被自己调用，这就是函数的递归调用。递归是一种解决问题的方法，它将一个问题分解为更小的子问题，直到达到最基本的情况，然后逐步返回结果。
+
+比方说，这个东西就是一个递归：数列${a_n}$，其中$a_0 = 1$，$a_1 = 1$，$a_n = a_{n-1} + a_{n-2}$。实际上这东西就是斐波那契数列。在计算机上的递归，和这个也差不多。
+
+所以说，最朴素的递归可以这么写（以斐波那契数列为例）
+\begin{minted}{c}
+int fibonacci(int n){
+    return fibonacci(n-1) + fibonacci(n-2);
+}
+\end{minted}
+但这个写法实际上是有问题的：什么时候终止呢？如果我们调用 \verb|fibonacci(0)| 或者 \verb|fibonacci(1)| ，它们会继续调用 \verb|fibonacci(-1)| 和 \verb|fibonacci(-2)| ，然后继续调用更小的负数，最终无限往下调用下去……
+
+这东西是个死循环。
+
+这是因为：
+\begin{theorem}{}{recursion-termination}
+    递归必须有一个终止条件。
+\end{theorem}
+\begin{proof}
+    见\ref{thm:recursion-termination}的证明。
+\end{proof}
+好了，开个玩笑。上面这东西可以理解为一个归谬法：如果递归没有终止条件，那么它就会不断的往下递归，不会终止，产生无限递归问题。在数学上这会导致死循环从而没有意义，而在计算机上会导致程序崩溃。
+
+所以，一个健康的递归应该是这么写的（依然以斐波那契数列为例）：
+\begin{minted}{c}
+int fibonacci(int n){
+    if (n == 0 || n == 1)
+        return 1; // 终止条件
+    else 
+        return fibonacci(n-1) + fibonacci(n-2);
+}
+\end{minted}
+实际的递归也未必写在 \verb|return| 里，写在外面也是正常的。
+
+但这么做依然是相当朴素的，例如上题中，假如每次调用 \verb|fibonacci(3)| ，都会导致大量的重复计算。为了防止重复计算，往往利用空间换时间，用一个数组来存储已经计算过的结果：
+\begin{minted}{c}
+int fibonacci(int n, int memo[]) {
+    if (n == 0 || n == 1)
+        return 1; // 终止条件
+    if (memo[n] != -1) // 如果已经计算过，直接返回结果
+        return memo[n];
+    memo[n] = fibonacci(n-1, memo) + fibonacci(n-2, memo); // 计算并存储结果
+    return memo[n];
+}
+int main() {
+    int n;
+    scanf("%d", &n);
+    int memo[n+1];
+    for (int i = 0; i <= n; i++)
+        memo[i] = -1; // 初始化数组
+    printf("%d\n", fibonacci(n, memo));
+    return 0;
+}
+\end{minted}
+或者干脆不用递归，使用更高效的迭代（Iteration）方法（实际换汤不换药）：
+\begin{minted}{c}
+int memo[500] = {0}; // 假设n不会超过499
+
+void fib_iter(){
+    memo[0] = 1;
+    memo[1] = 1;
+    for (int i = 2; i <= n; i++) {
+        memo[i] = memo[i-1] + memo[i-2];
+    }
+}
+
+int main() {
+    fib_iter(); // 先把表打出来
+    int n;
+    scanf("%d", &n);
+    printf("%d\n", memo[n]); // 可以任意多次复用，反正都是直接查表
+    return 0;
+}
+\end{minted}
+
+由此可见，递归是“从大到小”，迭代是“从小到大”，但两者本质等价。递归的思路是直接的，代码是简洁的，但效率往往不算高，大家都是能不递归就不递归；迭代则相反，思路更难、代码复杂，但效率往往更高。一个人如果能轻松的把迭代和递归互转，那么他就掌握了这两种算法的精髓。
+
+建立递归思维是非常困难的，但也是非常重要的。在实际生活中，很多问题都可以通过“分治--递归”的思路来解决：把大问题分成相似的小问题，解决这些小问题，然后把小问题的解合并成大问题的解。递归函数正是实现这种思路的有力工具。
+
+\begin{example}{爬楼}{}
+    有一栋楼有n层，每次可以爬1层或者2层。问有多少种不同的方式可以爬到第n层。
+    \begin{description}
+        \item[输入] 一个整数n，表示楼层数。
+        \item[输出] 一个整数，表示不同的爬楼方式的数量。
+    \end{description}
+    \tcblower
+    如果设$f(n)$为爬到第n层的方式数，那么可以得到递推关系：$f(n) = f(n-1) + f(n-2)$，其中$f(1) = 1$（显然），$f(2) = 2$（一次两层、两次一层）。这实际上是斐波那契数列的一个变种。于是，我们就可以这么写：
+    \begin{minted}{c}
+int climbStairs(int n) {
+    if (n == 1) return 1;
+    if (n == 2) return 2;
+    return climbStairs(n - 1) + climbStairs(n - 2);
+}
+    \end{minted}
+    当然这是我们之前所述的最朴素递归方法。请读者自行尝试使用记忆化递归或者迭代方法来优化这个程序。
+\end{example}
+

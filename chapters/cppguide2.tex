@@ -1,0 +1,873 @@
+\chapter{C++的面向对象编程与泛型编程}
+
+在上一章中，我们初步认识了C++和C的许多区别：命名空间、流、引用、智能指针等。本章将介绍C++与C的本质不同之处：C++的面向对象编程（OOP）和泛型编程（Generic Programming）。
+
+\section{面向对象编程}\label{sec:oop}
+
+面向对象编程是C++的最重要特性之一。它允许我们将数据和操作数据的函数封装在一起，形成一个对象。对象是一个包含数据和方法的实体，它可以表示现实世界中的事物。同时，面向对象编程还提供了继承、多态等特性，可以帮助我们更好地组织代码和数据。
+
+这种编程范式可以通俗地理解为“对主体进行描述”。我们以前可能会写“翻书”：
+\begin{minted}{cpp}
+struct Book {
+    std::size_t pages;  // 当前页数
+    std::size_t totalPages;  // 总页数
+};
+
+void flipBook(Book& book, std::size_t pages) {
+    book.pages += pages;  // 翻书
+    if (book.pages > book.totalPages) {
+        book.pages = book.totalPages;  // 不要翻过头了
+    }
+}
+
+Book myBook{0, 100};  // 创建一本书，当前页数为0，总页数为100
+flipBook(myBook, 5);  // 翻myBook的5页
+\end{minted}
+可以把 \verb|Book| 当成结构体看待。此时，上述函数是一个独立的函数。当这样的独立函数很多的时候，就会导致代码的可读性和可维护性变差，因为它们没有明确的归属关系，难以理解它们与数据之间的联系。
+
+现在则写“书被翻了”：
+\begin{minted}{cpp}
+class Book {
+public:
+    std::size_t pages;  // 当前页数
+    std::size_t totalPages;  // 总页数
+    void flip(std::size_t pages) {  // 翻书方法
+        this->pages += pages; 
+        if (this->pages > this->totalPages) {
+            this->pages = this->totalPages; 
+        }
+    }
+};
+
+Book myBook{0, 100};  // 创建一本书，当前页数为0，总页数为100
+myBook.flip(5);  // myBook被翻了5页
+\end{minted}
+
+这里书是主体（即对象），翻书是对主体的描述（即方法），目的是提高代码的可读性、可维护性和可重用性。
+
+于是就抽象出了“类”的概念：一般有相似特征的东西被归为一类，例如“书”是一个类，即上文的 \verb|class Book|；而每个具体的书则是这个类的一个\textbf{实例}，例如上文的 \verb|myBook| 就是 \verb|Book| 类的一个实例。
+
+本节C++标准为C++17。
+
+\subsection{类、属性和方法及其访问权限}
+
+类也可以看作“一个类型”，所以自然可以前向声明和定义。
+\begin{minted}{cpp}
+class MyClass;  // 声明一个类MyClass
+
+class MyClass {
+    // 类的定义
+};
+\end{minted}
+
+类中可以存储数据（属性）和操作数据的函数（方法）。在类中，属性和方法有不同的访问权限：
+\begin{itemize}
+    \item \verb|public|：公有成员，可以在类的外部访问。
+    \item \verb|protected|：保护成员，可以在类的内部和子类中访问。
+    \item \verb|private|：私有成员，只能在类的内部访问，外部无法访问。
+\end{itemize}
+如不写访问权限，默认是 \verb|private|。
+
+\begin{minted}{cpp}
+class Point2D{
+public:
+    static const int DIMENSION = 2;  // 类的常量属性
+    static int count;  // 类的静态属性
+    int x, y;
+    void move(int dx, int dy) {
+        x += dx;
+        y += dy;
+    }
+    Point2D(int x = 0, int y = 0) : x(x), y(y)
+    {
+        count++;
+    }  // 构造函数
+    ~Point2D() { count--; }  // 析构函数
+}
+\end{minted}
+于是，这下变量和函数成了一家人：
+\begin{minted}{cpp}
+Point2D p(1, 2);  // 创建一个Point2D对象p，x=1, y=2
+p.move(5, -3);  // 点p移动
+cout << Point2D::count << endl;  // 输出类的静态属性
+\end{minted}
+这就是“把数据和对数据的操作绑在一起”，即面向对象的核心思想。
+
+在类中，可以看到诸如 \mintinline{cpp}{static int} 这类关键字。这个关键字说明，这个属性是 \textbf{属于类本身} 的静态属性，在所有实例中共享，且即使没有实例也可以访问该属性；静态属性可以通过类名直接访问，如 \mintinline{cpp}{Point2D::count}。
+
+与之相对的就是 \textbf{实例属性}，它是属于每个实例的，每个实例都有自己独立的属性值。
+
+类的属性自然可以是常变量和常量。
+
+类的方法也可以是常方法，即在方法声明后加上 \verb|const|，表示该方法不会修改类的属性值。常方法只能调用其他常方法，不能调用非常方法。
+
+类的方法也可以是静态方法，即在方法声明前加上 \verb|static|，表示该方法是属于类本身的，而不是属于某个实例的。静态方法只能访问类的静态属性和静态方法，不能访问实例属性和实例方法。
+
+所有的类都有一个关键字：\verb|this|，它是一个指针，指向当前对象的地址。通过 \verb|this| 可以访问当前对象的属性和方法。
+
+\subsection{类的构造和析构}\label{sec:class-constructor-destructor}
+
+由于类一般比较复杂，所以在创建类的实例时，通常需要进行一些资源获取或初始化操作，这时就需要使用 \textbf{构造函数}。构造函数是类的一种特殊方法，它在创建类的实例时自动调用，用于初始化对象的属性。构造函数的名称与类名相同，并且没有返回类型。例如上文的 \mintinline{cpp}{Point2D(...)} 就是一个构造函数。
+
+因为相同的原因，在销毁类的实例时，因为RAII思想，要正确的释放所有资源，这时就需要使用 \textbf{析构函数}。析构函数也是类的一种特殊方法，它在销毁类的实例时自动调用，用于释放对象占用的资源。析构函数的名称与类名相同，但在前面加上波浪号（~），并且没有返回类型，如上文的 \mintinline{cpp}{~Point2D()} 就是一个析构函数。
+
+任何类在创建时，都会有默认的构造和析构函数。它们没有任何参数，也不执行任何操作。此时，构造函数会从上到下依次调用每个属性的默认构造函数，析构函数会从下到上依次调用每个属性的析构函数。只有默认构造和析构函数的类被称为\textbf{平凡且标准类型}，其行为与C语言的结构体类似。否则，一般叫做复杂类。
+
+如果我们自己写了自己的构造和析构函数，编译器就不会再隐式生成任何默认的构造和析构函数。
+\begin{minted}{cpp}
+class Point2D{
+    public:
+        int x, y;
+        static int count;
+        Point2D(int _x, int _y){ // 自己写的构造函数
+            x = _x;
+            y = _y;
+            count++;
+        }
+        ~Point2D() { count--; } // 自己写的析构函数
+};
+
+Point2D p(1, 2);  // 创建一个Point2D对象p，x=1, y=2
+Point2D q;  // 错误，没有默认构造函数
+\end{minted}
+
+类的构造函数也可以使用初始化列表来分配：
+\begin{minted}{cpp}
+class MyClass{
+    int x, y;
+public:
+    MyClass(int a, int b) : x(a), y(b) {}  // 初始化列表
+};
+\end{minted}
+这些初始化列表会调用这些对象的构造函数。对于基本类型（如\verb|int|、\verb|double|等），初始化列表会直接赋值。对于复杂类型（如STL容器等），初始化列表会调用它们的构造函数。
+
+构造函数和析构函数虽然负责类成员属性的资源获取或资源释放，但它们只是“在类本身获取或释放资源时执行的操作”，而不能“获取或释放类本身的资源”。所以，以下写法是错误的：
+\begin{minted}{cpp}
+class MyClass {
+public:
+    MyClass() { new MyClass(); }  // 错误
+    ~MyClass() { delete this; }  // 错误，析构函数不应该释放自身
+};
+\end{minted} 
+上述代码中，构造函数创建的新对象和当前正在构造的对象毫无关系——构造函数本应初始化当前对象，而不是创建另一个对象。而我们知道，\verb|delete| 操作的本质就是调用其析构函数，所以这个析构函数会导致无限递归调用自身，也有可能双重释放，这是一个未定义行为。类资源的释放应在类外用RAII句柄（如智能指针）或手动管理（ \verb|new| 和 \verb|delete|）来完成，不应该在类的析构函数中释放自身。
+
+但完全可以在构造函数中获取类成员属性的资源，在析构函数中释放类成员属性的资源：
+\begin{minted}{cpp}
+class MyClass {
+    int* data; 
+public:
+    MyClass() : data(new int[10]) { }   // 构造时获取资源
+    ~MyClass() { delete[] data; }       // 析构时释放资源
+};
+\end{minted}
+
+此外，构造函数也可以是私有的。此时如果还想创建类的实例，就需要使用静态方法来创建，这种方法一般被称作“工厂”方法，是一种常见的设计模式：
+\begin{minted}{cpp}
+class MyClass {
+    int x;
+    MyClass(int _x) : x(_x) { }  // 私有构造函数
+public:
+    static MyClass create(int _x) {  // 工厂方法
+        return MyClass(_x);  // 调用私有构造函数创建实例
+    }
+};
+MyClass obj = MyClass::create(5);  // 使用工厂方法创建实例
+\end{minted}
+工厂方法更多用于控制类的实例化过程，例如在创建实例时进行一些额外的操作，或者限制实例的数量、进行多态操作等。这是因为，构造函数一旦开始执行就不能中途退出（如抛出异常），否则会导致资源泄漏，即以下手段是错误的：
+\begin{minted}{cpp}
+class MyClass {
+    static constexpr int MAX_INSTANCES = 5;  // 最大实例数
+    static int instanceCount;  // 当前实例数
+    MyClass() { instanceCount++; if (instanceCount > MAX_INSTANCES) {
+            throw std::runtime_error("Too many instances");  // 错误，构造函数不能抛出异常，此时已经被创建的实例无法被销毁，导致资源泄漏
+        }
+    }
+};
+\end{minted}
+但使用工厂构造函数则会避免这个问题：
+\begin{minted}{cpp}
+class MyClass {
+    static constexpr int MAX_INSTANCES = 5;  // 最大实例数
+    static int instanceCount;  // 当前实例数
+    MyClass() { instanceCount++; }  // 私有构造函数
+public:
+    static MyClass create() {  // 工厂方法
+        if (instanceCount >= MAX_INSTANCES) 
+            throw std::runtime_error("Too many instances");  // 可以抛出异常，此时还没有创建实例，不会导致资源泄漏
+        else return MyClass();  // 调用私有构造函数创建实例
+    }
+};
+\end{minted}
+\subsection{类的拷贝与“三法则”}
+
+类的拷贝由拷贝构造函数和拷贝赋值运算符负责，主要任务就是将一个已有的实例复制到一个新的类中。
+
+编译器在默认情况下会自动生成拷贝构造函数和拷贝复制运算符。他们的默认行为是简单的将成员变量的数值复制过去。在常规情况下，这种行为是可以接受的。但当类中出现了指针，默认的拷贝行为可能会出问题，如下文实例：
+\begin{minted}{cpp}
+class MyClass {
+    int* data;
+public:
+    MyClass() : data(new int[10]) { }   // 构造时获取资源
+    ~MyClass() { delete[] data; }       // 析构时释放资源
+    MyClass(const MyClass& other) = default;  // 默认拷贝构造函数
+    MyClass& operator=(const MyClass& other) = default;  // 默认拷贝赋值运算符
+};
+
+Myclass a;
+Myclass b = a;  // 调用默认拷贝构造函数，此时还不会出问题。
+delete a; // 很正常的释放，此时也没有问题。
+delete b; // 出错了
+\end{minted}
+
+上述代码出错的原因是，我们在构造函数中为 \verb|data| 分配了内存、在析构函数中回收了内存。但拷贝构造中，默认的拷贝行为只是简单地将 \verb|data| 的指针值复制给了 \verb|b.data|，所以 \verb|a.data| 和 \verb|b.data| 指向了同一块内存。当我们删除 \verb|a| 时，内存被释放了；当我们删除 \verb|b| 时，它试图释放同一块内存，这就导致了双重释放错误。
+
+因此，在上世纪末，人们总结出了C++类的“三法则”：\textbf{如果一个类需要自定义析构函数、拷贝构造函数或拷贝赋值运算符中的任意一个，那么它们三个都应该被自定义。} 
+
+所以，正确的写法应该是：
+\begin{minted}{cpp}
+class MyClass {
+    int* data;
+public:
+    MyClass() : data(new int[10]) { }   // 构造时获取资源
+    ~MyClass() { delete[] data; }       // 析构时释放资源
+    MyClass(const MyClass& other) : data(new int[10]) {
+        std::copy(other.data, other.data + 10, data); // 拷贝
+    }
+    MyClass& operator=(const MyClass& other) {
+        if (this != &other) { // 防止自我赋值
+            delete[] data; // 释放旧资源
+            data = new int[10]; // 分配新资源
+            std::copy(other.data, other.data + 10, data); // 拷贝
+        }
+        return *this;
+    }
+}; // 此时就不会出现类似的双重释放问题了。
+\end{minted}
+
+\subsection{类的移动和“五法则”、“零法则”}
+
+C++11引入了移动语义，大大提高了性能。移动语义允许我们在不进行深拷贝的情况下，将资源从一个对象“移动”到另一个对象，从而避免了不必要的资源分配和释放。它主要用于临时对象被拷贝时，为避免深拷贝而进行。
+
+一般情况下，编译器会自动生成移动构造和移动赋值：
+\begin{minted}{cpp}
+class MyClass {
+    int data;
+public:
+    // 没有默认的析构函数
+    // 以下由编译器自动生成
+    MyClass(MyClass&& other) noexcept : data(other.data) {
+        other.data = 0; // 移动后将源对象置为默认状态
+    }
+    MyClass& operator=(MyClass&& other) noexcept {
+        if (this != &other) {
+            data = other.data; // 移动数据
+            other.data = 0; // 移动后将源对象置为默认状态
+        }
+        return *this;
+    }
+};
+\end{minted}
+但一旦自定义了析构函数，编译器就\textbf{不再}自动生成移动构造函数和移动赋值运算符。为了效率，程序员应当手动加上它们。这就是本世纪10年代提出的“五法则”：\textbf{如果一个类需要自定义析构函数、拷贝构造函数、拷贝赋值运算符、移动构造函数或移动赋值运算符中的任意一个，那么它们五个都应该被自定义。}
+
+虽然三五法则很重要，但随着计算机处理能力的提升和C++底层的不断完善，大家更加推崇零法则：\textbf{如果可以，尽量不要自定义析构函数、拷贝和移动，而应直接使用现成的RAII句柄（如智能指针、STL容器等）来管理资源。} 在这种情况下，编译器会自动生成所有的析构、拷贝、移动函数，且它们的行为是正确的：
+\begin{minted}{cpp}
+class MyClass {
+    std::vector<int> data; // 使用STL容器管理资源
+public:
+    MyClass() : data(10) { } // 构造时分配资源
+    // 其他的啥都不用写，默认的就能完美工作
+};
+\end{minted}
+零法则是现代C++的最佳实践，鼓励程序员尽量使用现成的资源管理工具，而不是手动管理资源，从而减少错误和提高代码的可维护性。
+
+\subsection{类的封装和友元}
+
+\paragraph{封装}
+在面向对象编程时，有的时候我们希望写好的类只暴露对应的接口，不暴露其实现细节，这样调用者就只能通过指定的方法来访问和修改类的属性，而不能直接访问和修改类的内部状态。这种机制被称为\textbf{封装}。
+
+封装分两部分：\verb|getter| 和 \verb|setter|。前者用于获取类的属性值，后者用于设置类的属性值。通过封装，我们可以控制对类属性的访问权限，从而保护类的内部状态不被随意修改。
+
+\begin{remark}{}
+    \verb|getter| 和 \verb|setter| 来自 \verb|C#|：
+    \begin{minted}{csharp}
+public class MyClass {
+    public int MyProperty { get; set; }  // 自动实现的属性
+    public int MyProperty2 { get; private set; }  // 只读属性
+}
+    \end{minted}
+    这样就实现了封装，同时又不失优雅。C++中没有这个优雅的语法，因此我们只能手动实现。
+\end{remark}
+
+\begin{minted}{cpp}
+class BankAccount {
+    int balance;
+public:
+    BankAccount(int initialBalance) : balance(initialBalance) { } // 构造函数
+    int getBalance() const { return balance; } // getter
+    void deposit(int amount) { // setter
+        balance += std::max(amount, 0); // 只允许存入非负金额
+    }
+    void withdraw(int amount) { // setter
+        if (amount > 0 && amount <= balance) {
+            balance -= amount; // 只允许取出不超过余额的金额
+        }
+    }   
+};
+\end{minted}
+这样可以阻止外部直接修改余额，只能通过存款和取款方法来操作余额。
+
+\paragraph{友元}
+
+友元函数是封装的例外，允许绕过封装、访问类的私有属性和方法。
+
+\begin{minted}{cpp}
+class MyClass {
+    int privateData;
+public:
+    MyClass(int data) : privateData(data) { }
+    friend void printPrivateData(const MyClass& obj); // 声明友元函数
+};
+void printPrivateData(const MyClass& obj) {
+    std::cout << obj.privateData << std::endl; // 可以访问私有成员
+}
+\end{minted}
+
+友元函数不仅可以是类的成员函数，也可以是全局函数。但友元函数的定义必须在类外，不能在类内。一般很少用到友元函数，因为它破坏了类的封装性。但有些时候友元函数在频繁访问类的私有属性时可以提高性能，或者在实现某些操作时更方便。
+
+\subsection{类的继承}
+
+继承是面向对象编程的重要特性。它允许我们创建一个子类（也叫派生类），该子类可以继承父类（也叫基类）的属性和方法，从而实现代码的重用和扩展。子类可以添加新的属性和方法，也可以重写父类的方法，以实现不同的行为。父类和子类的关系是，“子类是父类的一个特例”，或者说“子类是父类”，比如“男人和女人都是人”，所以男人和女人都可以继承“人类”，但不能写成“女人类”继承“男人类”，反过来也一样，因为男人不是女人，女人也不是男人。
+
+\paragraph{继承的基本语法}
+
+继承的基本语法如下：
+\begin{minted}{cpp}
+class Base {
+    // ...
+};
+class Derived : public Base { // 继承Base类
+    // ...
+};
+\end{minted}
+这是 \verb|public| 继承，表示子类可以访问父类的 \verb|public| 和 \verb|protected| 成员，但不能访问父类的 \verb|private| 成员。除此之外，还有 \verb|protected| 继承和 \verb|private| 继承，分别表示子类只能访问父类的 \verb|protected| 成员，或者只能访问父类的 \verb|public| 成员。
+
+必须说明，以下两种代码是不过编译的：
+\begin{minted}{cpp}
+    class Base;
+    class Derived : public Base { ... };  // 错误，Base类未定义
+\end{minted}
+\begin{minted}{cpp}
+    class Base { ... };
+    class Derived : public Base; // 不行，声明时不能继承
+\end{minted}
+前一个代码仅声明父类 \verb|Base|，但没有定义它，这样的类型是“不完整的”，C++规定不能继承一个不完整的类，因为编译器需要知道父类的完整定义才能正确地生成子类的代码。后一个代码定义了父类，并试图对子类进行前向声明，但C++规定仅声明时不能继承，因为继承关系是在类定义时（而不是在声明时）明确指定。
+
+继承时，子类会自动继承父类的所有函数和方法，也可以有自己的新属性和方法，还可以删除父类的某些方法：
+\begin{minted}{cpp}
+class Shape {
+public:
+    double area;
+    double calc() { return area; }
+    double foo() { return 0; }
+};
+
+class Circle : public Shape {
+public:
+    double radius;
+    Circle(double r) : radius(r) {
+        area = 3.14 * radius * radius;  // Circle类可以访问Shape类的area属性
+    }
+    double foo() = delete;  // Circle类可以删除Shape类的calc()方法
+};
+
+Circle c;  // 创建一个Circle对象c
+c.area = 3.14;  // Circle对象c继承了Shape类的area属性
+c.calc();  // Circle对象c继承了Shape类的calc()方法
+c.foo();  // Circle对象c删除了Shape类的foo()方法，编译错误
+\end{minted}
+
+\paragraph{子类的构造和析构} 
+
+当一个子类被构造时，会按以下固定顺序执行：
+\begin{enumerate}
+    \item 分配足够的内存空间。
+    \item 调用基类的构造函数。除非基类有默认构造函数，否则必须在子类中显式指明调用的哪一个构造函数。
+    \item 按类中声明的顺序，初始化子类的各成员对象。
+    \item 执行子类的构造函数体。
+\end{enumerate}
+
+因此，写成代码应该是这样的：
+\begin{minted}{cpp}
+class Base {
+public:
+    Base(int x) { std::cout<<"Base constructor with x="<<x<<std::endl; }
+};
+
+class Member {
+public:
+    Member() { std::cout<<"Member constructor"<<std::endl; }
+};
+
+class Derived : public Base {
+    Member m;
+public:
+    Derived(int x) : Base(x) { // 显式调用基类的构造函数
+        std::cout<<"Derived constructor"<<std::endl;
+    }
+};
+
+int main() {
+    Derived d(5);  // 创建Derived对象d，调用Derived的构造函数
+    // 输出：
+    // Base constructor with x=5
+    // Member constructor
+    // Derived constructor
+    return 0;
+}
+\end{minted}
+这里 \mintinline{cpp}{Derived(int x) : Base(x)} 是必须的，因为 \verb|Base| 类没有默认构造函数，所以必须显式调用它的构造函数。如果基类有多个构造函数，选择一个合适的构造函数来调用即可。
+
+子类的析构过程则与构造严格相反：
+\begin{enumerate}
+    \item 执行子类的析构函数体。
+    \item 按类中声明的顺序，析构子类的各成员对象。
+    \item 调用基类的析构函数。
+    \item 释放内存空间。
+\end{enumerate}
+
+\paragraph{虚方法及其重写} 有的时候，希望子类继承父类的方法时，能根据子类的实际情况来重写父类的方法，这时就需要使用 \textbf{虚方法}。虚方法是指在父类中声明为 \verb|virtual| 的方法，它允许子类重写该方法，从而实现多态性。多态性是面向对象编程的核心特性之一，它允许我们在运行时根据对象的实际类型来调用相应的方法，从而实现灵活的代码设计。
+
+\begin{minted}{cpp}
+class Shape {
+public:
+    virtual double area() const = 0; // 纯虚方法，表示该方法必须在子类中实现
+    virtual ~Shape() { } // 一旦有了虚方法，就必须手动指定虚析构函数
+};
+class Circle : public Shape {
+    double radius;
+public:
+    Circle(double r) : radius(r) { }
+    double area() const override { // 重写父类的area()方法
+        return 3.14 * radius * radius;
+    }
+};
+class Rectangle : public Shape {
+    double width, height;
+public:
+    Rectangle(double w, double h) : width(w), height(h) { }
+    double area() const override { // 重写父类的area()方法
+        return width * height;
+    }
+};
+Circle c1(5.0);
+double c1a = c1.area(); // 调用Circle类的area()方法，是静态绑定/编译时多态
+Shape* s1 = new Circle(5.0);
+double s1a = s1->area(); // 实际调用Circle类而非父类的area()方法，是动态绑定/运行时多态
+\end{minted}
+
+被重写的方法必须是虚的，否则子类的方法会隐藏父类的方法，而不是重写它。虚方法的声明中可以使用 \verb|override| 关键字，表示该方法是对父类虚方法的重写，这样编译器会检查是否正确地重写了父类的方法。
+
+特别注意：当一个类有虚方法时，其析构函数必须是虚的。如果一个类不继承自有虚析构函数的基类（包含两种类型：一是没有继承任何类，二是继承自一个没有虚析构函数的类），且有虚方法，且不手动定义析构函数时，编译器\textbf{不会生成}一个虚的析构函数。此时，当我们通过父类指针删除子类对象时，子类的析构函数不会被调用，从而导致资源泄漏或未定义行为。但如果某个类继承自一个有虚析构函数的类，那么它的析构函数会自动成为虚的，即使没有显式声明。
+
+这个设计的原因是，C++ 的设计哲学是“你不付出就不需要”（You don't pay for what you don't use）。虚函数需要额外的内存开销（虚函数表指针 vptr）和运行时开销。如果将虚方法的存在与析构函数的虚属性强行绑定，会导致所有包含虚函数的类的对象体积变大，而很多情况下用户并不需要通过基类指针来删除派生类对象，因此编译器不会自作主张。
+
+\paragraph{虚函数表}
+
+虚函数表是C++用来管理虚方法的一种机制，是运行时多态的核心，和编译时多态有根本区别。
+
+虚函数表实际上是一个函数指针数组，它在编译时生成。如果一个类声明了虚函数，编译器会在该类的每一个对象中隐式插入一个名为“虚函数表指针”的成员变量，即 \verb|vptr|。这个指针会占用额外的内存空间。在对象构造时，构造函数会自动将 \verb|vptr| 指向该类的虚函数表。虚函数表中存储了该类的虚函数的地址。当我们通过基类指针调用虚函数时，程序会通过 \verb|vptr| 找到虚函数表，根据函数的固定偏移量找到对应的函数指针，从而调用实际的函数。这种查表--调用的机制确保了即使使用基类指针，程序也能在运行时动态找到并执行属于实际对象类型的正确虚函数。
+
+虚函数表虽然实现了运行时多态，但伴随着性能和设计上的代价。最主要的瓶颈就是运行时的性能开销：由于虚函数的实际地址是未知的，所以不能内联（一种编译时优化），每次调用又需要 \verb|vptr| 和虚函数表的两次寻址，导致程序性能变差。此外还会导致内存的占用增加。
+
+编译时多态则与运行时多态不同，因为编译时就知道特定实例的静态类型，所以完全可以通过对象的调用进行去虚拟化优化。例如上述虚方法的实例中， \verb|Circle c1(5.0);| 的静态类型是 \verb|Circle|，所以编译器可以直接将 \verb|c1.area()| 优化为 \verb|3.14 * 5.0 * 5.0|，而不需要通过虚函数表查找。此时，虚函数表开销不存在。
+
+在C++中，类是否包含虚函数应取决于一个类的设计用途，而不是为了性能考量。“因为这段代码没用到多态，所以基类不该有虚函数”是倒果为因。实际上，将一些方法设计为虚的，可以保障未来所有通过基类指针调用的场景绝对正确，因此千万不要为了“优化”而去掉 \verb|virtual| 关键字，因为这种情况往往是好心办坏事的。
+
+此外，虚函数表也可以解释为什么我们在构造或析构期间，运行时多态不起作用。在构造或析构函数内部，如果调用了一个虚函数，编译器不会去查虚函数表来决定调用哪个派生类的重写版本，而是直接在当前类的作用域内静态地决议，调用该类自己定义的版本；从我们的视角看，虚函数失去了虚的特性，表现和普通成员函数一致。其底层机制是，在构造和析构期间，虚函数表指针 \verb|vptr| 会被阶段性锁定，都是指向基类的虚函数表，而不是指向派生类的虚函数表。
+
+\paragraph{抽象类（接口）}
+
+抽象类和接口是面向对象编程中的重要概念。在C++中，接口是抽象类的一个特例。
+
+抽象类，又被叫做“IsA”，用于定义\textbf{本质}，通常用于被多个子类继承，如“人类”是“男人”和“女人”的抽象类。只要类包含至少一个虚函数，他就是抽象类。
+
+接口，又被叫做“约定”“CanDo”，用于定义\textbf{能力}，它关注一个类“能做什么”，而不关心数据来源。一个类即使属于不同的继承体系，只要实现了同一个接口，就能用相同的方式调用其能力。一个接口类要求它不存在任何成员变量，且所有方法都是 \verb|public| 的虚方法。
+
+在C++中实现抽象类和接口，主要的目的是多重继承。C++允许一个类继承自多个父类，这种机制被称为多重继承。通过多重继承，一个子类可以同时继承多个父类的属性和方法，从而实现更复杂的对象模型。
+
+例如说，假设我们要设计一个“动物”类，并要求“动物”有“会叫”的能力，且能够被画出来：“会叫”是“动物”的一部分，而“能画出来”可以和“动物”无关。因此，设计抽象类、接口与多重继承的子类如下列代码所示：
+\begin{minted}{cpp}
+class Animal {
+private:
+    std::string name;
+public:
+    Animal(const std::string& name) : name(name) { }
+    std::string getName() const { return name; }
+
+    virtual void makeSound() const = 0; // 纯虚函数，表示动物会叫
+    virtual ~Animal() { } // 虚析构函数
+};
+
+class IDrawable { // 一般接口用I开头，表示这个是Interface
+public:
+    virtual void draw() const = 0; // 纯虚函数，表示能画出来
+    virtual ~IDrawable() = default; // 虚析构函数，仅为了析构安全，没有其他逻辑
+};
+
+class Cat : public Animal, public IDrawable { // 多重继承
+public:
+    Cat(const std::string& _name) : Animal(_name) { }
+
+    void makeSound() const override { // 重写Animal的makeSound()方法
+        std::cout << getName() << " says Meow!" << std::endl;
+    }
+
+    void draw() const override { // 重写IDrawable的draw()方法
+        std::cout << "Drawing a cat..." << std::endl;
+    }
+};
+
+Cat cat("cat");
+cat.makeSound(); // 调用Animal的makeSound()方法
+cat.draw(); // 调用IDrawable的draw()方法
+\end{minted}
+
+\paragraph{虚继承}
+
+虚继承是C++中为了解决多重继承中“菱形继承”问题的方法：一个类同时继承自两个父类，而这两个父类又继承自同一个祖先类，这样会导致子类中存在两个祖先类的副本，从而引发二义性和资源浪费的问题。虚继承通过在继承时使用 \verb|virtual| 关键字，确保在继承链中只有一份祖先类的实例，从而避免了菱形继承问题。
+
+\begin{minted}{cpp}
+class A {
+public:
+    void show() { std::cout << "A" << std::endl; }
+};
+class B : virtual public A { // 虚继承A
+public:
+    void showB() { std::cout << "B" << std::endl; }
+};
+class C : virtual public A { // 虚继承A
+public:
+    void showC() { std::cout << "C" << std::endl; }
+};
+class D : public B, public C { // D继承B和C
+public:
+    void showD() { std::cout << "D" << std::endl; }
+};
+\end{minted}
+
+这种多重继承使用时必须慎之又慎。
+
+\section{泛型编程与概念}
+
+泛型编程的意思是：编写与类型无关的代码，从而实现代码的重用。在C++中，泛型编程的核心机制是模板（Templates）。模板允许我们编写通用的代码，可以处理不同类型的数据。现代STL的几乎所有组建都是基于模板实现的，因此可以支持几乎所有的类型。
+
+本节C++标准为C++20。
+
+\subsection{函数模板}
+
+在没有模板编程的时候，我们想写一个通用的加法，会这么写：
+\begin{minted}{cpp}
+int add(int a, int b) { return a + b; }
+double add(double a, double b) { return a + b; }
+int a = add(1, 2); // 调用int版本
+double b = add(1.0, 2.0); // 调用double版本
+\end{minted}
+但如果我们想支持更多类型，就需要写更多的函数重载，这样代码会变得冗长且难以维护。使用函数模板，我们可以写出一个通用的加法函数：
+\begin{minted}{cpp}
+template<typename T>
+T add(T a, T b) { return a + b; }
+
+int a = add(1, 2); // 调用int版本
+double b = add(1.0, 2.0); // 调用double版本
+\end{minted}
+在上述代码中，\verb|template<typename T>| 就是模板。它声明了一个模板参数 \verb|T|，表示函数 \verb|add| 可以接受两个参数，这两个参数只要类型相同就可以。对于不支持加法运算符的类型，编译器会报错，但我们可以为这些类型重载加法运算符。在调用函数时，编译器会为我们选择最合适的 \verb|T|，并生成对应的函数代码，这个过程称为模板实例化。模板实例化在编译期进行。
+
+也可以显式指定类型，比如 \mintinline{cpp}{add<int>(1.0, 2.0)} 会显式调用 \verb|add| 函数模板的 \verb|int| 版本，编译器会将参数转换为 \verb|int| 类型。
+
+在试着调用一个函数的时候，编译器会按以下方式查找合适的函数：
+\begin{enumerate}
+    \item 首先查找是否有与调用参数类型完全匹配的非模板函数。
+    \begin{minted}{cpp}
+void add(int a, int b) { cout<<"non-template function called"<<endl; }  // 非模板函数
+template <typename T>
+T add(T a, T b) { cout<<"template function called"<<endl; }  // 模板函数
+add(5, 10);  // 调用非模板函数
+    \end{minted}
+    \item 如果没有找到，则查找是否有与调用参数类型匹配的模板函数，并进行模板实例化。
+    \begin{minted}{cpp}
+template <typename T>
+T add(T a, T b) { cout<<"template function called"<<endl; }
+add(5, 10);  // 调用模板函数
+    \end{minted}
+    \item 如果找到多个匹配的模板函数，编译器会尝试进行模板参数推导，以确定最合适的模板实例。
+    \begin{minted}{cpp}
+template <typename T>
+T add(T a, T b) { cout<<"template function 1 called"<<endl; }
+template <typename T>
+T add(T a, double b) { cout<<"template function 2 called"<<endl; }
+add(5, 3.14);  // 调用模板函数2
+    \end{minted}
+    \item 如果仍然无法确定唯一的匹配，编译器会报错，提示存在二义性。
+    \begin{minted}{cpp}
+template <typename T>
+T add(T a, T b) { cout<<"template function 1 called"<<endl; }
+template <typename T>
+T add(T a, T* b) { cout<<"template function 2 called"<<endl; }
+int x = 5;
+int* p = &x;
+add(x, p);  // 二义性错误，无法确定调用哪个模板函数
+    \end{minted}
+    \item 如果没有找到任何匹配的函数，编译器会报错，提示找不到合适的函数。
+\end{enumerate}
+
+模板也可以使用多种类型：
+\begin{minted}{cpp}
+template<typename T1, typename T2>
+auto add(T1 a, T2 b) { return a + b; }  // 使用auto返回类型，支持不同类型的参数
+int a = add(1, 2); // 调用int版本
+double b = add(1.0, 2.0); // 调用double版本
+auto c = add(1, 2.0); // 调用int和double版本，返回类型为double
+\end{minted}
+
+\subsection{类模板}
+
+类模板的语法类似，只不过这里是定义一个类，而不是一个函数：
+\begin{minted}{cpp}
+template <typename T>
+class Box {
+public:
+    T value;  // 存储一个值
+    Box(T v) : value(v) {}  // 构造函数
+    T getValue() const { return value; }  // 获取值的方法
+};
+Box<int> intBox(42);  // 创建一个存储整数的Box对象
+Box<double> doubleBox(3.14);  // 创建一个存储双精度浮点数的Box对象
+\end{minted}
+使用模板可以避免为每种数据类型编写重复的代码，提高代码的复用性和可维护性。
+
+\subsection{概念约束的模板}
+
+概念 \verb|concept| 是C++20引入的一个新特性，指的是“某种类型满足某个性质”。它允许我们为模板参数定义约束条件，从而实现更灵活和安全的模板编程。概念可以用来限制模板参数的类型，确保它们满足特定的要求。比较常见的是使用 \verb|std::integral|、\verb|std::floating_point| 等标准库提供的概念，或者自定义概念来约束模板参数。
+
+例如，上文写的 \verb|add| 函数模板，我想让他只能加“整数”，就可以使用概念约束：
+\begin{minted}{cpp}
+#include <concepts>
+
+template <typename T>
+requires std::integral<T>  // 约束T必须是整数类型
+T add(T a, T b) { return a + b; }
+auto a = add(1, 2); // 调用int版本，合法
+auto b = add(1l, 2l); // 调用long版本，合法
+auto c = add(1ul, 2ul); // 调用unsigned long版本，合法
+// double b = add(1.0, 2.0); // 编译错误
+\end{minted}
+更多概念请参见C++标准库文档。
+
+概念可以被自定义：
+\begin{minted}{cpp}
+template <template-parameter-list>
+concept name attr (optional) = constraint-expression;
+\end{minted}
+
+比如
+\begin{minted}{cpp}
+template <typename T>
+concept Addable = requires(T a, T b) { (a + b) -> std::same_as<T>; };  // 定义一个Addable概念，要求类型T支持加法运算，并且返回类型与T相同
+template <typename T>
+requires Addable<T>  // 约束T必须满足Addable概念
+T add(T a, T b) { return a + b; }
+auto a = add(1, 2); // 调用int版本，合法
+auto b = add(1.0, 2.0); // 调用double版本
+\end{minted}
+虽然这种概念约束不写也行（因为无法实例化会导致编译失败），但写上概念约束可以让编译器在编译期的报错更易读，且可以让模板的使用者更清楚地知道该模板的使用限制。
+
+
+\subsection{模板特化}
+
+\paragraph{普通的特化}
+
+模板特化指的是为特定类型提供专门的实现，而不是使用通用的模板实现。模板特化可以分为完全特化和偏特化两种。完全特化指的是对“一个”类型提供专门的实现，而偏特化指的是对“某一类”类型提供专门的实现。比如对上文的 \verb|Box<T>| 进行完全特化和偏特化：
+\begin{minted}{cpp}
+template <>
+class Box<bool> {
+public:
+    bool value;
+    Box(bool v) : value(v) {}  // 构造函数
+    void toggle() noexcept { value = !value; }  // 特化方法，切换布尔值
+}; // 全特化
+
+template <typename T>
+class Box<T*> {
+public:
+    T* value;
+    Box(T* v) : value(v) {}  // 构造函数
+    T* getValue() const { return value; }  // 获取指针值的方法
+}; // 偏特化
+\end{minted}
+
+模板特化很像继承，但实际不是继承：模板特化不会继承通用模板的成员。因此，在使用模板特化时，需要为特化类型提供一个完整的实现，而不是依赖于通用模板的成员。
+
+\paragraph{概念特化}
+
+概念特化指的是为满足某个概念的类型提供专门的实现。比如说，同样是那个\verb|Box<T>|，我们可以为满足某个概念的类型提供特化实现：
+\begin{minted}{cpp}
+#include <concepts>
+
+template <typename T>
+class Box {
+public:
+    T value;  // 存储一个值
+    Box(T v) : value(v) {}  // 构造函数
+    T getValue() const { return value; }  // 获取值的方法
+
+    void toggle() requires std::same_as<T, bool> {  // 仅当T是bool类型时才启用
+        value = !value;  // 切换布尔值
+    }
+};
+
+Box<bool> boolBox(true);  // 创建一个存储布尔值的Box对象
+boolBox.toggle();  // 调用toggle方法，切换布尔值
+Box<int> intBox(42);  // 创建一个存储整数的Box对象
+// intBox.toggle();  // 编译错误，不满足概念约束
+\end{minted}
+
+\subsection{可变数量参数的模板和折叠表达式}\label{sec:foldexpr}
+
+变参模板允许我们定义接受可变数量模板参数的模板。这样，我们可以编写更加通用和灵活的代码。变参模板使用省略号（ \verb|...| ）来表示可变数量的参数，通常和折叠表达式一起使用。
+
+折叠表达式用于简洁地对可变参数模板中的参数包进行归约运算。它本质上是一种编译期的“循环”，将二元操作符依次应用于参数包的所有元素，最终生成一个单一的结果。折叠表达式常与匿名函数（lambda）配合使用，极大简化了编程代码。
+
+\begin{minted}{cpp}
+template <typename... Args>
+void printAll(const Args&... args) {
+    ((std::cout << ... << args), ...); // 折叠表达式，输出所有参数
+    std::cout << std::endl;  // 最终的输出
+}
+printAll(1, 2.5, "Hello", 'A');  // 输出
+\end{minted}
+
+例如计算一组数的均值：
+\begin{minted}{cpp}
+template <typename... Args>
+double mean(Args... args) {
+    return (static_cast<double>(args) + ...) / sizeof...(args); // 计算均值
+}
+double result = mean(1, 2, 3, 4, 5);  // result = 3.0
+\end{minted}
+
+在使用匿名函数时，可以直接 \verb|(auto... args)|，而不需要手动定义模板。
+\begin{minted}{cpp}
+// 一元右折叠：对参数包应用二元操作符（从右向左结合）
+auto sum = [](auto... args) {
+return (args + ...); // 等价于 1 + (2 + (3 + 4))
+};
+int result = sum(1, 2, 3, 4); // result = 10
+
+// 包展开（并非折叠表达式）：直接构造容器
+auto to_vector = [](auto... args) {
+return std::vector{args...}; // 将参数包展开为初始化列表
+};
+std::vector<int> vec = to_vector(1, 2, 3, 4); // vec 包含 {1, 2, 3, 4}
+
+// 逗号折叠：依次执行多个操作（左折叠，操作符为逗号）
+auto all_multiply2 = [](auto... args) {
+std::vector<int> result;
+((result.push_back(args * 2)), ...); // 展开为 result.push_back(1*2), result.push_back(2*2), ...
+};
+all_multiply2(1, 2, 3, 4); // result 得到 {2, 4, 6, 8}
+\end{minted}
+
+可以看出，C++17 的折叠表达式主要分为以下两类：
+\begin{description}
+\item[一元折叠] 仅使用操作符和参数包，格式为 \verb|(op ...)|（右折叠）或 \verb|(... op)|（左折叠）。
+\item[二元折叠] 额外提供一个初始值，格式为 \verb|(init op ...)| 或 \verb|(... op init)|。它可以保证在参数包为空时，返回初始值，而不是报错。
+\end{description}
+
+此外，利用逗号操作符可以构造“循环”效果，即对每个参数依次执行某个操作（如上述的 \verb|push_back|），其本质是左折叠或右折叠，操作符为逗号。
+
+需要特别指出的是，示例中的 \verb|std::vector{args...}| 并非折叠表达式，而是包展开（pack expansion），它只是将参数包直接展开为初始化列表，不涉及归约运算。理解这一点有助于避免概念混淆。
+
+通过折叠表达式，我们可以用极简的代码实现参数包的归约、遍历和累积，是C++模板编程中非常实用的利器。
+
+\subsection{非类型的模板参数和模板元编程}
+
+\paragraph{普通的非类型模板参数}
+
+非类型模板参数是指在模板中使用的参数不是类型，而是一个常量值。非类型模板参数可以是整数、枚举、指针或引用等类型（必须是常量，不能是常变量）。非类型模板参数允许我们在编译时传递值，从而实现更灵活的模板编程。
+
+\verb|std::array<T, N>| 就是一个典型的非类型模板参数的例子，其中 \verb|N| 是一个整数常量，表示数组的大小。使用非类型模板参数可以在编译时确定数组的大小，从而提高性能和安全性。我们这里写一个简单的封装数组。
+
+\begin{minted}{cpp}
+template <typename T, std::size_t N>
+class Array {
+public:
+    T data[N];  // 使用非类型模板参数N定义数组大小
+    T& operator[](std::size_t index) { return data[index]; }  // 重载下标运算符
+    std::size_t size() const { return N; }  // 返回数组大小
+};
+Array<int, 5> intArray;  // 创建一个存储5个整数的Array对象
+intArray[0] = 1;  // 使用下标运算符
+int size = intArray.size();  // 获取数组大小
+\end{minted}
+
+\paragraph{模板元编程}
+
+模板元编程是模板的一种高级玩法，它利用模板的特性在编译时进行计算和类型推导，从而实现类似于函数式编程的效果。模板元编程在C++中一开始被用作数值计算（由于是编译时计算，运行时相当于打表）、类型体操、代码结构生成。但现在，随着C++20引入的 \verb|consteval|，模板元编程在数值领域已经不再风光；而C++26即将引入的\verb|reflect| 也在挤占模板元编程的地位（但目前很不稳定）。至少在可见的将来，模板元编程仍然是C++的一个重要特性。
+
+我们来举一个例子：现在希望对 \verb|std::tuple<T1, T2, T3>| 进行遍历。这听起来非常简单，但元组的性质使得这个问题极为困难：因为正式的实现 \verb|std::get<N>(tuple)| 中， \verb|N| 是一个常量，而如果用 \verb|for| 循环遍历 \verb|N|，就会导致编译器报错，因为 \verb|N| 不是一个常量。为了解决这个问题，我们可以使用模板元编程来实现一个递归的遍历函数：
+
+\begin{minted}{cpp}
+#include <iostream>
+#include <tuple>
+#include <utility>
+
+// 开始类型体操，先把主要模板写出来
+template <typename T, typename Tuple>
+struct TupleIndex; // 声明一个模板结构体，用于获取类型T在元组Tuple中的索引
+
+// 第一种特化：找到了！此时T就是元组的第一个类型，索引为0
+template <typename T, typename... Rest>
+struct TupleIndex<T, std::tuple<T, Rest...>> {
+    static constexpr std::size_t value = 0; // 索引为0
+};
+
+// 第二种特化：没找到，继续在剩余类型中查找
+template <typename T, typename U, typename... Rest>
+struct TupleIndex<T, std::tuple<U, Rest...>> 
+    : std::integral_constant<std::size_t, 1 + TupleIndex<T, std::tuple<Rest...>>::value> {};
+
+// 体操完毕，开始代码结构生成
+// 这是一个辅助函数，用于递归遍历元组中的每个元素，并对每个元素应用给定的函数
+template <typename Tuple, typename Func, std::size_t... Is>
+void for_each_impl(Tuple&& tuple, Func&& func, std::index_sequence<Is...>) {
+    // 这里用一下折叠表达式，实际上这里会被展开为
+    // func(std::get<0>(std::forward<Tuple>(tuple)));
+    // func(std::get<1>(std::forward<Tuple>(tuple)));
+    // ...... 等等。
+    // 每一个Is都是常量，因此完全合法
+    (func(std::get<Is>(std::forward<Tuple>(tuple))), ...);
+}
+// 现在干正事
+template <typename Tuple, typename Func>
+void for_each_tuple(Tuple&& tuple, Func&& func) {
+    constexpr std::size_t N = std::tuple_size_v<std::remove_reference_t<Tuple>>(); // 获取元组的大小
+    for_each_impl(std::forward<Tuple>(tuple), std::forward<Func>(func), std::make_index_sequence<N>{}); // 生成一个索引序列，并调用辅助函数
+}
+
+int main() {
+    using Tuple = std::tuple<int, double, std::string>; // 定义一个元组类型
+
+    Tuple tuple(42, 3.14, "Hello"); // 创建一个元组对象
+    for_each_tuple(tuple, [](const auto& value) { // 遍历元组中的每个元素
+        std::cout << value << std::endl; // 输出每个元素的值
+    }); // 终于能编译了！输出 42 3.14 Hello
+    return 0;
+}
+\end{minted}
+
+实际上上述内容就是 \mintinline{cpp}{std::apply} 的实现原理。这说明，标准库真是个好东西。所以我们上述内容实际上被三行代码秒杀掉了：
+\begin{minted}{cpp}
+std::apply([](const auto&... value) { // 遍历元组中的每个元素
+    ((std::cout << value << std::endl), ...); // 输出
+}, tuple); 
+\end{minted}

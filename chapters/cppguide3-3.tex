@@ -1,0 +1,236 @@
+\subsection{堆}
+
+这个堆和之前那个“栈”差不多。之前说到栈，有两个：数据结构栈，和内存栈。这里也是一样的：数据结构堆，和内存堆。我们这里的堆自然是数据结构堆，因为不涉及 \verb|new|。
+
+堆的逻辑形态是一棵完全二叉树：在二叉树的基础上，要求从上到下、从左到右依次填满每一层。不过因为完全二叉树的良好特性，所以我们完全可以在物理上用一个顺序表去存这个。理由：除了最后一层外，其他层都是满的，且最后一层节点从左到右紧密排布，这种特性可以让我们把数组的下标和树的层次结构对应起来：根节点的下标是0，对于任意一个节点，它的左孩子下标是 $2i+1$，右孩子下标是 $2i+2$，父节点下标是 $(i-1)/2$（向0舍入）。这样，不仅节省了内存，还缓存非常友好。
+
+但仅仅是一个“堆”，我们并不能用他来做什么，所以要给他加上一些限制。比如“大根堆”：要求对于每一个父节点，它的不小于它的两个孩子节点。这样一来，根节点就是整个堆中最大的元素。类似的还有“小根堆”，要求每一个父节点不大于它的两个孩子节点，这样根节点就是整个堆中最小的元素。我们以大根堆来举例说明。
+
+当我们在大根堆中插入一个新元素时，我们先把它放在顺序表的末尾，此时它在大根堆的最后一层。随后，逐步上浮：如果它大于它的父亲，那么就把它和父亲换位，如此不断上浮，直到它不大于它的父亲，或者它已经是根节点了。这个过程的时间复杂度是 $O(\log n)$。
+
+当我们在大根堆中移除根节点时（我们只关心堆顶元素，不关心其他元素），我们则反过来：把最后一个元素提到堆顶（实际上由于底层是顺序表，是将顺序表最后元素和首元素换位，然后移除最后的元素，这样是$O(1)$的），然后逐步下沉：如果它小于它的两个孩子节点中较大的那个，那么就把它和那个孩子换位，如此不断下沉，直到它不小于它的两个孩子节点，或者它已经是叶子节点了。这个过程的时间复杂度也是 $O(\log n)$。
+
+当我们从一个普通数组建立堆的时候，它的时间复杂度是 $O(n)$：从最后一个非叶子节点开始逐步向前下沉，直到根节点。为什么是 $O(n)$ 呢？因为叶子节点不需要下沉，倒数第二层的节点最多下沉一层，倒数第三层的节点最多下沉两层……根节点最多下沉 $\log n$ 层。于是总的时间复杂度就是：
+\begin{equation}
+\sum_{i=0}^{\log n} \frac{n}{2^{i+1}} \cdot i = O(n)
+\end{equation}
+
+建立堆后，有一个巨大的好处：如果是大根堆，那么根节点就是整个堆里最大的；如果是小跟堆，那么根节点就是整个堆里最小的。于是我们可以用堆来做一个排序算法：堆排序。堆排序的时间复杂度是 $O(n \log n)$，空间复杂度是 $O(1)$，是一种原地排序算法，做法就是建堆，然后把倒数第一个元素和第二个元素换位（因为最大的已经排好了），然后把堆的大小减一，重新下沉堆顶元素，直到堆的大小为1。堆排序是不稳定的排序算法。
+
+当然，我们比起排序，更关心的是每一次都能把最大值（最小值）拿到队首。于是，优先队列诞生了。
+
+\paragraph{优先队列}
+
+优先队列就是堆。一般的优先队列是大根堆，队首元素是整个队列中最大的元素。优先队列的插入和删除操作的时间复杂度都是 $O(\log n)$，获取队首元素的时间复杂度是 $O(1)$。
+
+如果要用小根堆，应该这么写：
+\begin{minted}{cpp}
+std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
+\end{minted}
+这是模板类 \verb|std::priority_queue| 的一个实例化，三个模板参数分别是：元素类型、底层容器类型、比较函数对象类型。默认的底层容器是 \verb|std::vector|，默认的比较函数对象是 \verb|std::less<T>|，也就是大根堆。
+
+为什么小根堆反而是 \verb|std::greater<int>| 呢？因为标准库大概是写反了，写的是父节点和子节点之间的比较：当父节点优先于子节点时，父节点要下沉（子节点要上浮）……这大概是一个错误，且延续了多年，此时已经成为了标准库的惯例了。那我们就只能背下来了。
+
+优先队列是非常“有性格”的数据结构：不提供迭代器，不支持直接修改或移除其中的元素，只能通过插入和删除队首元素来操作。它的主要用途是需要频繁获取最大值或最小值的场景，比如任务调度、事件驱动模拟等。
+
+\begin{example}{武士对决}{}
+    假设现在有许多武士要角斗。每个武士都有一个名字和一个体力值，当两个武士相互角斗的时候，体力值较高的武士将会获胜，而体力值较低的武士会耗尽体力，并被淘汰。然而，角斗会消耗武士的体力值，因此每一次角斗后，胜者的体力值会减少等同于败者当前体力值的数值。如果有两个武士体力相等，则他们都会耗尽体力被淘汰。为了保证公平，武士们决定按照体力值从高到低的顺序进行角斗；如果有多个体力值最高的武士，那么他们会在这些武士中选择姓名字典序最靠前的两个武士进行角斗（例如有abc三个武士，则a的姓名字典序最靠前，b次之，c最靠后）。每次角斗后，胜者会回到队列中继续参与角斗，直到只剩下一个武士或者没有武士剩下为止。
+
+    请你写一个程序，模拟这个过程，并输出最后剩下的武士的姓名和体力值。如果没有武士剩下，则输出\verb|No warrior left|。
+    
+    \begin{description}
+        \item[输入] 第一行输入一个整数 $n$，表示武士的数量。接下来 $n$ 行，每行输入一个字符串和一个整数，分别表示武士的姓名和体力值。
+        \item[输出] 输出最后剩下的武士的姓名和体力值，如果没有武士剩下，则输出\verb|No warrior left|。
+    \end{description}
+    \tcblower
+    这个题目思路非常直接，看到这个过程就知道是优先队列了，纯考察知不知道有这么个队列，知道的话就能$O(n\log n)$。要不然指定超时$O(n^2\log n)$。
+
+    先把所有武士放入优先队列中，每次取出两个武士进行角斗，比较他们的体力值，更新胜者的体力值，并将胜者重新放入优先队列中。重复这个过程，直到优先队列中只剩下一个武士或者没有武士剩下为止。
+
+    \begin{minted}{cpp}
+struct Warrior {
+    std::string name;
+    int strength;
+    Warrior(std::string n, int s) : name(n), strength(s) {}
+    bool operator<(const Warrior& other) const {
+        if (strength == other.strength) {
+            return name > other.name; // 体力相等时，姓名字典序
+        }
+        return strength < other.strength; // 体力值较高的优先
+    }
+};
+
+std::priority_queue<Warrior> pq;
+int n;
+std::cin >> n;
+for (int i = 0; i < n; ++i) {
+    std::string name;
+    int strength;
+    std::cin >> name >> strength;
+    pq.emplace(name, strength);
+}
+while(!pq.empty()) {
+    Warrior w1 = pq.top(); pq.pop();
+    if (pq.empty()) {
+        std::println("{} {}" , w1.name, w1.strength);
+        break;
+    }
+    Warrior w2 = pq.top(); pq.pop();
+    if (w1.strength == w2.strength) {
+        // 两个武士体力相等，双方都被淘汰
+        continue;
+    } else if (w1.strength > w2.strength) {
+        w1.strength -= w2.strength;
+        pq.push(w1);
+    } else {
+        w2.strength -= w1.strength;
+        pq.push(w2);
+    }
+}
+    \end{minted}
+\end{example}
+
+\subsection{位集合}
+
+位集合是另一个“顺序表”。它接受一个编译期的整数作为位集合的长度，并在内存中为每一位分配一个二进制位（bit），而不是一个字节（byte）；其成员类型是一个代理，和\verb|std::vector<bool>|类似。位集合的大小是固定的，不能动态扩展。它的主要用途是节省内存空间，尤其是在需要存储大量布尔值的情况下。
+
+位集合可以使用字符串或整数来初始化：
+\begin{minted}{cpp}
+std::bitset<8> bs("11001010"); // 初始化为11001010
+std::bitset<4> bs2{0xA}; // 用整数初始化，0xA是1010
+std::cout << bs.to_string() << std::endl; // 输出11001010
+std::cout << bs2.to_string() << std::endl; // 输出1010
+\end{minted}
+
+这个东西支持的算法和先前有较大的不同。它的主要支持算法是位运算：与、或、非、异或、左移、右移；除此之外，比较需要注意的一点是它没有 \verb|begin()| 和 \verb|end()|，而是提供了 \verb|count()|、\verb|any()|、\verb|none()|、\verb|all()| 等方法来统计集合中为真的元素个数，或者判断集合中是否有为真的元素。要访问特定位，应使用方括号或 \verb|test()| 方法。要修改特定位，应使用 \verb|set()|、\verb|reset()|、\verb|flip()| 等方法。必须说明的是，这个特定位是从右往左数的，最右边的位是第0位，最左边的位是第n-1位，所以将一个64bit的位集合仅输出右面4位，如使用循环应当逆序，但更常见的是转成字符串再处理。
+
+也可以直接全部打印。
+\begin{minted}{cpp}
+std::bitset<64> bs;
+bs.set(0); // 设置第0位为1
+bs.set(1); // 设置第1位为1
+std::cout << bs << std::endl; 
+std::cout << bs.to_string().substr(60) << std::endl; // 输出右面4位
+\end{minted}
+
+此外，它还能转成整数，\verb|to_ullong()|方法将位集合转成无符号长整数，\verb|to_ulong()|方法将位集合转成无符号整数。
+
+\subsection{对和元组}
+
+对、元组是不同类型元素的容器。对是一个固定大小为2的容器，元组是一个固定大小为n的容器。它们可以存储不同类型的元素，并且可以通过下标访问元素。对和元组都是值类型，它们的元素可以是任意类型，包括其他对和元组。
+
+\begin{minted}{cpp}
+std::pair<int, std::string> p(1, "hello");
+auto [x, y] = p; // C++17结构化绑定
+std::cout << x << " " << y << std::endl; // 输出1 hello
+std::tuple<int, std::string, double> t(1, "hello", 3.14);
+auto [a, b, c] = t; // C++17结构化绑定
+std::cout << a << " " << b << " " << c << std::endl; // 输出1 hello 3.14
+\end{minted}
+
+这两个容器一般用于函数返回多个值，或者在STL中作为键值对使用，比如 \verb|std::map| 和 \verb|std::unordered_map| 的元素类型就是 \verb|std::pair<const Key, T>|。
+
+要返回对的第一项和第二项，可以用 \verb|p.first| 和 \verb|p.second|，要返回元组的第n项，可以用 \verb|std::get<n>(t)|，这里的 \verb|n| 是一个编译期常量，表示要访问的元素的索引。所以以下写法是错误的：
+\begin{minted}{cpp}
+for (int i = 0; i < 3; ++i) {
+    std::cout << std::get<i>(t) << std::endl; // 错误，i不是编译期常量
+}
+\end{minted}
+而应该用提供的现成函数：
+\begin{minted}{cpp}
+std::apply([](auto&&... args) {
+    ((std::cout << args << std::endl), ...);
+}, t);
+\end{minted}
+或者干脆用结构化绑定处理，能更省事。一般元组也不建议写的太大，超过5个元素就不太好读了。实在不行，可以考虑用结构体代替元组。
+
+\subsection{其他容器}
+
+这里的“其他容器”主要是一些特殊用途的容器，即变体 \verb|variant|，可选值 \verb|optional|，任意类型 \verb|any|。
+
+它们实际上都是一个“盒子”，可以存储不同类型的值，但每次只能存储一个值。它们的主要用途是解决函数返回值的问题：当函数可能返回不同类型的值时，可以使用这些容器来封装返回值，从而避免使用指针或引用。
+\begin{itemize}
+    \item \verb|std::optional|：表示一个可能存在也可能不存在的值。它可以用来表示函数的返回值可能为空的情况，或者表示一个变量可能没有被初始化的情况。
+    \item \verb|std::variant|：表示一个可能是多种类型之一的值。它可以用来表示一个变量可能是多种类型之一的情况，或者表示一个函数的返回值可能是多种类型之一的情况。
+    \item \verb|std::any|：表示一个可以存储任意类型的值。它可以用来表示一个变量可以存储任意类型的值，或者表示一个函数的返回值可以是任意类型的值。
+\end{itemize}
+
+比如说：
+\begin{minted}{cpp}
+std::optional<int> opt; // 默认构造，opt为空
+opt = 42; // 赋值，opt现在包含一个int值42
+if (opt) { // 检查opt是否包含值
+    std::cout << *opt << std::endl; // 输出42
+}
+std::variant<int, std::string> var; // 默认构造，var为空
+var = 42; // 赋值，var现在包含一个int值42
+var = "Hello"; // 赋值，var现在包含一个string值"Hello"
+if (std::holds_alternative<int>(var)) { // 检查var是否包含int类型的值
+    std::cout << std::get<int>(var) << std::endl; // 输出42
+}
+std::any a; // 默认构造，a为空
+a = 42; // 赋值，a现在包含一个int值42
+a = std::string("Hello"); // 赋值，a现在包含一个string值"Hello"
+if (a.type() == typeid(int)) { // 检查a是否包含int类型的值
+    std::cout << std::any_cast<int>(a) << std::endl; // 输出42
+}
+\end{minted}
+它们因为有类型擦除的开销，所以一定要谨慎使用，尤其是在性能敏感的场景下。
+
+\section{视图和范围}
+
+刚刚我们讨论的都是容器本身。要处理一个容器，可能要复制或移动，或创建新的容器，这样会有额外的开销。C++20引入了视图（View）的概念，它是一种轻量级的、不可变的、惰性求值的容器适配器。视图不会存储数据，而是提供了一种访问和操作现有容器数据的方式。
+
+既然它是“观察数据的容器适配器”，那就天然解决了以下问题：
+\begin{itemize}
+    \item 告别裸指针+长度这种危险的传参组合；
+    \item 告别复制或移动容器的开销，实现零拷贝的性能优化；
+    \item 避免 \verb|T&| 的过度约束，让函数可以接受任意类型的容器，而不仅仅是特定类型的容器，统一接口。
+\end{itemize}
+
+必须注意，无论是什么视图，其生命周期都不会比被观察的容器长。
+
+\subsection{一般视图}
+
+一般的视图是 \verb|std::span|。这种视图更多的是作为函数参数存在，比如说：
+\begin{minted}{cpp}
+void print(std::span<const int> s) {
+    std::cout << "size: " << s.size() << std::endl;
+    std::ranges::copy(s, std::ostream_iterator<int>(std::cout, " "));
+}
+
+int arr[] = {1, 2, 3, 4, 5};
+print(arr); // 传入数组，可以；
+std::vector<int> vec = {6, 7, 8, 9, 10};
+print(vec); // 传入vector，也可以；
+std::array<int, N> arr2 = {11, 12, 13, 14, 15};
+print(arr2); // 传入array，也可以；
+\end{minted}
+
+由于视图提供了 \verb|subspan()| 方法和相关的迭代器，我们可以从一个视图中创建一个子视图，并无缝的和STL算法集成。
+\begin{minted}{cpp}
+std::span<const int> s1(arr); // 创建一个视图，观察数组 arr
+std::span<const int> s2 = s1.subspan(1, 3); // 创建一个子视图，观察 s1 的第 1 个元素开始的 3 个元素
+std::ranges::copy(s2, std::ostream_iterator<int>(std::cout, " ")); // 输出 2 3 4
+\end{minted}
+
+总而言之，只要一个函数需要读取或修改一段连续的数据，但不关心数据来自什么容器，就都可以用 \verb|std::span| 来作为参数类型。本质上可以和 \verb|T&| 相提并论，且更灵活。只有当函数需要对原来的容器本身（而非其中的内容）进行操作时，才需要传入容器本身。
+
+\subsection{字符串视图}
+
+\verb|std::string_view| 可以当成 \verb|std::span| 的字符串特化版本。需要注意的是，它更像是 \verb|const std::string&|，即不可变。它可以接受C字符串，也可以接受其他的字符串类型，如 \verb|std::string| 等。
+
+在普通视图的基础上，字符串视图提供了更多的字符串操作方法，如 \verb|substr()|、\verb|find()|、\verb|rfind()|、\verb|starts_with()|、\verb|ends_with()| 等。它们的时间复杂度和对应的 \verb|std::string| 方法相同。
+
+\subsection{视图操作（范围库）}
+
+C++20为视图的操作提供了一整套操作手段，它们被整合在 \verb|<ranges>| 头文件中，统称为范围库（Ranges Library）。范围库提供了许多视图适配器，可以对视图进行各种操作，如过滤、转换、连接、分割等。我们先前讨论的“约束算法”，实际上就是范围库的一部分，它们可以直接作用于容器（发生了一次隐式转换）。但范围库的视图操作更为灵活，可以对视图进行链式操作，从而实现复杂的数据处理流程。
+
+\verb|std::ranges| 是这个范围库的大框架，而其下有很多 \verb|std::ranges::views|（也可以简写成 \verb|std::views|）的视图适配器对数据进行观察和变换。它们可以通过管道操作符来进行链式调用，从而实现对视图的流水线操作。
+
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+auto view = vec | std::views::filter([](int x) { return x % 2 == 0; }) // 过滤出偶数
+                | std::views::transform([](int x) { return x * x; }); // 将偶数平方
+std::ranges::copy(view, std::ostream_iterator<int>(std::cout, " ")); // 输出 4 16 36 64 100
+\end{minted}

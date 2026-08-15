@@ -1,0 +1,263 @@
+\chapter{准备C++开发环境}
+
+对于绝大多数计算机专业的学生而言，C/C++是他们接触的第一门编程语言，其中不乏初次接触编程的同学，编程的世界对他们来说可能会显得有些陌生和复杂。
+
+编程的本质是我们将我们的想法和逻辑，通过一定的形式化后形成抽象的、可计算的模型（即数据结构和算法）；随后，用特定的编程语言将这些模型转化为计算机可以理解和执行的程序。编程语言是我们与计算机交流的工具，它们有着各自的语法和语义，帮助我们更高效地表达我们的想法。
+
+对于任何编程行为，除了编程语言本身以外，我们都需要掌握两个要素：\textbf{工具}和\textbf{环境}：
+\begin{description}
+    \item[工具] 用来编写和运行程序的软件工具。它们帮助我们更高效地达成我们的目标，例如调试程序、管理项目等。
+    \item[环境] 我们编写、调试、运行代码的整个过程和条件，如操作系统、编程语言版本以及相关的库和框架。一个良好的编程环境可以大大提高我们的工作效率；同时，我们写出的代码，最终也要运行在某个环境中。
+\end{description}
+
+现代编程语言一般分三类：
+\begin{description}
+    \item[机器语言] 也叫机器码，是计算机可以直接理解和执行的语言。它是最底层的编程语言，只由0和1组成，直接操作计算机硬件，在不同计算机上有显著差异，因此往往不直接使用。
+    \item[汇编语言] 由助记符和操作码组成的低级语言，它比机器语言更易读，但仍然与特定的计算机体系结构紧密相关。汇编语言需要通过汇编器转换为机器语言才能被计算机执行。
+    \item[高级语言] 例如C/C++、Python、Java等，它们提供了更接近人类语言的语法和结构，使得程序员可以更容易地编写和理解代码。高级语言通常需要通过编译器或解释器转换为汇编语言或机器语言才能被计算机执行。
+\end{description}
+C/C++就是一种高级语言。如前所述，一段C/C++代码充其量只是一堆计算机不能理解的纯文本，必须通过\textbf{编译器}编译成汇编码、\textbf{汇编器和链接器}转化为机器码，计算机才能运行它们。因此，学习C/C++的第一步，就是安装好编译器和相关的工具，搭建好C/C++的开发环境。
+
+本章中如果有任何你不理解的指令，\textbf{请先照做}，不要自作主张更改步骤，以免导致之后不必要的麻烦。
+
+为了方便，人们通常会将编写、调试、测试代码所需的各种工具捆绑在一起，形成一个集成开发环境（IDE），是其中一种开发方式。另一种方式是仅使用文本编辑器（Editor）和编译器（Compiler）来进行开发，这种方式我个人称之为EC范式。两种方式各有各的优势和缺陷：前者的优势在于便利和统一，缺陷是臃肿且死板；EC范式的优势在于灵活和轻量，缺陷是需要更多的配置和学习成本。
+
+我个人非常推荐EC范式，因为\textbf{大家之后肯定不会仅局限于一种编程语言}，如果为不同的编程语言都安装一个IDE，势必会占用大量的磁盘空间和内存资源；而EC范式往往只需要安装不同的编译器，编辑器是可以复用的，因此更加节省资源。更重要的是，EC范式往往可以经过调整适应不同的需求，而IDE往往配置固定，不易调整。从长远来看，使用EC范式会更有利于我们学习和掌握不同的编程语言和工具。
+
+下文将分别介绍常用的IDE和EC范式的开发环境搭建方法，大家可以根据自己的喜好选择其中一种方式。\textcolor{red}{\bfseries 不要同时使用两种方式，以免导致重复。}
+
+\section{IDE}
+
+IDE在Windows下较多，在Linux和macOS下较少。
+
+直接下载安装以下两个IDE之一即可：
+
+\subsection{Visual Studio Community}
+微软官方提供的免费IDE，功能强大，适合Windows用户，这也是Windows下最省事、最权威的IDE，其扩展性在IDE中算是相当良好的。官方网址：\url{https://visualstudio.microsoft.com/zh-hans/vs/}。不要下载Professional或Enterprise版本，它们是收费的。下称VS。
+
+你将获得一个“Visual Studio Installer”，它是一个安装器，负责下载和安装VS。安装器会提示你选择工作负载（Workload），请至少选择“使用C++的桌面开发”这一项。其他选项可以根据自己的需求选择。
+
+\begin{remark}{}
+    Visual Studio 最大的问题在于“太重”。此外，VS实际上面向超大软件的开发流程，其开发过程并不适合初学者：VS把一个工作目录视为一个“项目”，当用户使用编译功能时会把整个项目编译一遍。而在同一个项目中，不能同时存在多个同名的变量和函数，因此即使我们在VS中新建了不同的C++文件且他们在逻辑上并无任何关联，但是VS依然会把它们视为同一个项目的一部分，从而导致命名冲突的问题。对于初学者来说，这无疑是一个巨大的坑，往往表现为“我这个 \mintinline{c}{main} 函数怎么出现了重定义的错误？”。
+
+    另外，VS出于安全性考量，禁用了C系的一部分函数，例如 \mintinline{c}{printf} 。当我们试图对这些函数进行调用时，VS会报错并提示我们使用更安全的版本，例如 \mintinline{c}{printf_s} 。这无疑给初学者带来了不必要的困扰。当然这个困扰并非不能解决，只需要在文件开头定义宏 \mintinline{c}{#define _CRT_SECURE_NO_WARNINGS} 即可，但这无疑增加了学习的难度。另外， \mintinline{c}{printf_s} 等并不是标准函数，这会导致代码的可移植性变差。
+
+    综上所述，我非常建议新手远离VS。每一年都会有大量的初学者因为使用VS而陷入困境，浪费了大量的时间和精力。
+\end{remark}
+
+\subsection{DevC++}
+
+DevC++是一个轻量级的IDE，适合Windows用户。官方版一个可行的下载途径是：\url{https://sourceforge.net/projects/orwelldevcpp/}。DevC++自带了MinGW编译器，因此安装起来非常方便。
+
+DevC++的好处是开箱即用，且确实足够轻量，也不会像VS一样对编程造成限制。但缺点是非常显然的：
+\begin{itemize}
+    \item DevC++已经多年没有更新了，不适配新C++标准，且存在一些已知的bug。但好在它是开源的，可以安装一些其他的社区版，如小熊猫等。
+    \item DevC++过于简陋，扩展性差、功能有限，缺乏一些现代IDE或编辑器所提供的高级功能，如智能代码补全、调试工具和版本控制集成等。
+\end{itemize}
+但如果你的目的仅仅是速成C/C++来应付考试，那这东西确实足够用了。只可惜它不能用来干大活。
+
+\subsection{VS Code + Code Runner插件}\label{sec:vs-code}
+
+Visual Studio Code（VS Code）实际上是一个Editor，它本身并不是IDE，但通过安装插件可以扩展其功能，使其具备IDE的特性。官方网址是：\url{https://code.visualstudio.com/}，下称Code。
+
+我们需要安装的是System Installer版本，而不是User Installer版本。\textcolor{red}{\bfseries 务必选择“Add to PATH”选项！}
+
+下载并安装好Code之后，我们需要安装一个插件来实现编译和运行C/C++代码的功能。然后安装这些插件：
+\begin{itemize}
+    \item \verb|C/C++| 、 \verb|C/C++ Extension Pack| 和 \verb|C/C++ Themes| ，这些可以提供语法高亮、智能补全、调试工具等功能。
+    \item \verb|Code Runner| ，这个插件可以让我们在Code中直接运行C/C++代码，而无需手动配置编译器和调试器。
+\end{itemize}
+
+Code Runner的劣势和DevC++类似，都是缺乏一些高级功能和扩展性，不适合干大活。但它还有一些优势在于：
+\begin{itemize}
+    \item Code本身是跨平台的，支持Windows、Linux和macOS。Linux用户用包管理器安装，macOS用户则需在官网上下载arm64版本（而不是amd64！），以适配mac计算机的Apple Silicon芯片。
+    \item Code的插件生态非常丰富，用户可以根据自己的需求安装各种插件来扩展其功能，如调试工具、版本控制集成、代码格式化等。
+\end{itemize}
+Code也是后文的常客，也是目前最好的Editor之一，因此我强烈建议大家安装它。
+
+\section{EC范式}
+
+\subsection{Editor} 代码编辑器，随便什么编辑器都行。比如：
+\begin{itemize}
+    \item 记事本（各类操作系统自带，功能最简陋，但实际已经够用）。
+    \item Notepad++（Windows，功能强大，支持多种编程语言和插件扩展）。
+    \item VIM/NeoVIM（跨平台，本体简陋、插件丰富，纯TUI、不需要图形界面，适合远程开发，但新手可能被劝退）。
+    \item Emacs（同上）。
+    \item Code（跨平台，功能强大，插件丰富，适合各种开发者）。
+    \item Kate（跨平台，功能强大，插件丰富，界面和Code相似，但相对不适合新手）。
+    \item Microsoft Word（虽说这个也不是不行，但还是不要用这个了！）
+\end{itemize}
+对于成熟的开发者而言，用什么编辑器确实不是核心问题，关键是熟练掌握其使用方法，以及怎样写出高质量代码。不过对于初学者而言，还是建议在Notepad++、Code、Kate中选一个，它们相对更新手友好一些。Code的安装过程见 \nameref{sec:vs-code} 节（但不需要安装 \verb|Code Runner| 插件了），其他编辑器的安装过程请自行搜索。
+
+\subsection{Compiler} 编译器，负责将我们写的代码编译成计算机可以理解的机器码。C/C++有三个最常见的编译器：GCC（G++）、Clang（Clang++）和MSVC（cl.exe）。其中GCC和Clang是跨平台的，而MSVC仅适用于Windows。这些编译器通常会与特定的C/C++标准库实现（如GNU的libstdc++、LLVM的libc++或Microsoft的MSVC CRT）配合使用，不同的标准库之间存在细微差异。我们一般建议在Linux上使用GCC或Clang，而在Mac上几乎只能使用Clang。MSVC工具链在Windows上非常流行，但是不跨平台且为闭源软件，有部分程序员可能因此不愿意使用。
+
+\begin{remark}{GCC/GDB vs Clang/LLDB}
+    GCC和Clang都是优秀的开源编译器，各有优势。
+
+    GCC是GNU项目的基石，始于1987年，历史悠久，理念为“功能优先”。除了支持C/C++外，还支持许多编程语言。其优化极其成熟，性能领先，平台支持广泛，但编译速度相对较慢。GDB是和GCC配套的调试器，同样功能优先，但用户体验不佳，错误信息晦涩难懂。
+    
+    Clang是LLVM项目的一部分，更现代，始于2007年，理念为“用户体验优先”。它的编译速度快，错误信息清晰易懂，支持现代C++标准，但优化能力略逊于GCC，平台支持相对有限。LLDB是和Clang配套的调试器，用户体验良好，更快、内存效率更高。
+
+    但Clang还有一个大杀器是GCC没有的：Clangd。Clangd是一个基于Clang的语言服务器，提供了智能代码补全、语法检查、重构等功能。它可以与多种编辑器和IDE集成，极大地提升了开发效率。
+
+    对于大一新生，我们建议使用Clang，它的错误信息非常友好，能极大降低编程初期的挫败感，理解语法和逻辑错误，将宝贵的经历集中在算法和编程思维上，而不是与编译器“搏斗”。不过，GCC依然是事实标准，所以我们在本章节中会同时教大家GCC和Clang，但之后会以GCC为主。
+\end{remark}
+
+\paragraph{MSVC for Windows} 这个太简单了，直接下载VS并安装C++开发模块就行，全家桶立刻装好。但问题在于，如果光为了一个MSVC就把VS装到计算机去，总有“杀鸡焉用牛刀”的别扭之感，所以还是不要这么做了。
+
+\paragraph{GCC for Windows} 比起手动下载和配置预编译版本的GCC，我更推荐使用MSYS2或者Cygwin来安装GCC。它们提供了一个完整的UNIX环境，免去了在Windows上配置编译器的麻烦，也防止了预编译版GCC脱离时代的问题。
+
+你需要在MSYS2官网\url{https://www.msys2.org/}下载最新的安装包，并按照官网的说明进行安装。安装完成后，你可以在MSYS2终端中运行以下命令来安装GCC和GDB（建议使用UCRT64终端，不建议使用逐渐失去支持的32位以及MINGW64环境）：
+
+\begin{minted}{bash}
+pacman -S mingw-w64-ucrt-x86_64-gcc
+pacman -S mingw-w64-ucrt-x86_64-gdb
+\end{minted}
+
+如果你还需要Git，同样可以通过MSYS2统一安装，无需单独下载Git for Windows：
+\begin{minted}{bash}
+pacman -S mingw-w64-ucrt-x86_64-git
+\end{minted}
+
+注意应当安装 \verb|mingw-w64-ucrt-x86_64-git| 包，它是原生Windows 版本；而名为 \verb|git| 的包是Cygwin版本，性能较差且可能与VS Code等工具兼容性不佳。Git for Windows本身其实也是基于MSYS2构建的精简环境，因此一般在MSYS2中管理时没有必要再单独安装Git for Windows。
+
+
+在MSYS2中安装完成后，用户如果想要在Windows终端中使用GCC，则需要设置环境变量，以便在命令行中直接使用编译器命令。
+
+一般情况下，用户需要将MSYS2的bin目录添加到系统的PATH环境变量中。具体步骤如下：
+
+\begin{itemize}
+  \item 找到MSYS2的安装目录，通常是 \verb|C:\msys64| 。
+  \item 将 \verb|C:\msys64\ucrt64\bin| 添加到系统的PATH环境变量中。（请按照你的实际安装路径进行调整，下同）
+  \item 在PowerShell或者CMD中运行以下命令来验证是否配置成功： \mintinline{bash}{gcc --version} 。如果输出了GCC的版本信息，则说明配置成功。
+  \item 需要在Windows的PowerShell或者CMD中运行POSIX风格工具时，也可以将下列路径也添加到用户的PATH环境变量中： \verb|C:\msys64\usr\bin| 。但这样具有环境冲突风险，需要注意保证该变量的查找顺序在比ucrt64的bin目录更靠后，以避免冲突。
+\end{itemize}
+
+在安装完GCC和GDB后，我们可以在终端中运行以下命令来验证是否安装成功：
+\begin{minted}{bash}
+gcc --version
+gdb --version
+\end{minted}
+
+输出大概类似于：
+\begin{minted}{text}
+gcc (GCC) 15.2.1 20250813
+Copyright © 2025 Free Software Foundation, Inc.
+本程序是自由软件；请参看源代码的版权声明。本软件没有任何担保；
+包括没有适销性和某一专用目的下的适用性担保。
+\end{minted}
+或其英文版本。GDB的输出类似。如果你能看到上述输出，则说明GCC和GDB安装成功且配置正确。否则，请检查你的安装步骤和环境变量设置是否正确。
+
+\paragraph{Clang for Windows} Clang自然也可以通过MSYS2安装，只不过这次是要在MSYS2 Clang64终端（注意不是别的）中运行以下命令：
+\begin{minted}{bash}
+pacman -S mingw-w64-clang-x86_64-toolchain
+\end{minted}
+这条命令会安装Clang编译器、LLDB调试器以及其他相关工具。安装过程中，系统会提示你确认安装，直接按回车键接受默认选项即可。
+
+同样的，如果你想要在Windows终端中使用Clang，则需要将MSYS2的Clang64的bin目录添加到系统的PATH环境变量中。具体步骤如下：
+\begin{itemize}
+  \item 找到MSYS2的安装目录，通常是 \verb|C:\msys64| 。
+  \item 将 \verb|C:\msys64\clang64\bin| 添加到系统的PATH环境变量中。（请按照你的实际安装路径进行调整，下同）
+  \item 在PowerShell或者CMD中运行以下命令来验证是否配置成功： \mintinline{bash}{clang --version} 。如果输出了Clang的版本信息，则说明配置成功。
+\end{itemize}
+
+如果不想通过这个手段安装，也可以去LLVM的官方网站下载适用于Windows的包：\url{https://github.com/llvm/llvm-project/releases}，找到适合你系统的版本下载并安装。建议勾选“Add LLVM to the system PATH”选项，这样安装程序会自动将Clang添加到环境变量中。这种方法最为直接，但相比通过MSYS2安装，缺少了包管理机制，后续更新和管理可能稍显不便。
+
+\paragraph{GCC \& Clang for Linux} 在Linux上安装GCC和Clang通常非常简单。大多数Linux发行版都自带了GCC和Clang，或者可以通过包管理器轻松安装。例如，在Ubuntu上，你可以运行以下命令来安装GCC和GDB：
+\begin{minted}{bash}
+sudo apt update
+sudo apt install build-essential gdb
+\end{minted}
+安装完成后，你可以通过运行 \mintinline{bash}{gcc --version} 和 \mintinline{bash}{gdb --version} 来验证安装是否成功。
+
+其他发行版请自行使用对应的包管理器如\mintinline{bash}{dnf}、\mintinline{bash}{yum}、\mintinline{bash}{pacman}等安装GCC和GDB。命令和安装的包名称可能有所不同，但大多数发行版的官方文档中都有详细的说明。
+
+要安装Clang，只需要把上述命令中的 \verb|build-essential| 替换为 \verb|clang| 即可。其他发行版请自行使用对应的包管理器安装Clang。安装完成后，你可以通过运行 \mintinline{bash}{clang --version} 来验证安装是否成功。
+
+\paragraph{Clang for macOS} 在macOS上，Clang是默认的C/C++编译器，而LLVM是默认的调试器。你可以通过安装Xcode Command Line Tools来获取Clang和LLVM。打开终端并运行以下命令：
+\begin{minted}{bash}
+xcode-select --install
+\end{minted}
+安装完成后，你可以通过运行 \mintinline{bash}{clang --version} 和 \mintinline{bash}{lldb --version} 来验证安装是否成功。
+
+\paragraph{GCC for WSL2} 如果你在Windows上使用WSL2（Windows Subsystem for Linux 2），你可以在WSL2的Linux环境中安装GCC和GDB。打开WSL2终端并运行以下命令：
+
+首先，假设你没有安装过任何WSL发行版。打开PowerShell，输入以下命令：
+\begin{minted}{bash}
+  wsl --install # 默认安装 Ubuntu 发行版，完全足够
+\end{minted}
+等待安装完成后，重启电脑。重启后，在开始界面找到Ubuntu图标，点击打开。第一次打开时，会提示你创建一个Linux用户名和密码，按照提示操作即可。
+
+接下来，换源并更新系统：
+\begin{minted}{bash}
+  sudo apt update && sudo apt upgrade -y
+\end{minted}
+换源操作请参考\href{https://mirrors.tuna.tsinghua.edu.cn/help/ubuntu/}{清华大学开源软件镜像站的帮助页面}。
+
+然后，安装C/C++开发环境：
+\begin{minted}{bash}
+  sudo apt install gcc gdb # CMake先不装，新手用不上
+\end{minted}
+
+下一步，打开你的VS Code，在欢迎页上选择“连接到”，在弹出的菜单里选择WSL，此时如果没有安装过WSL插件则会自动安装。连接成功后，VS Code会自动打开一个新的窗口，左下角会显示你当前连接的WSL发行版名称。
+
+然后你就需要在该窗口里安装C++插件们，以便于代码高亮、补全、自动运行等。具体见下文\nameref{sec:code-with-gcc}节。
+
+现在，你就可以愉快地在WSL里编写C/C++代码了！当然你依然需要创建一个工作目录，并在里面创建源代码文件，否则扩展不起作用。
+
+\subsection{GCC without Code} 如果你单纯的想把编辑器和编译器分开、不使用Code、Kate等提供的运行功能，那么你可以在编辑器中编写代码，然后在终端中使用GCC命令进行编译和运行。下面是一个简单的示例：
+\begin{minted}{bash}
+g++ main.cpp -O2 -g -o main.exe
+./main.exe
+\end{minted}
+上述命令的含义是：使用 \mintinline{bash}{g++} 来编译 \verb|main.cpp| 文件， \mintinline{bash}{-O2} 表示优化等级为2， \mintinline{bash}{-g} 表示生成调试信息， \mintinline{bash}{-o main.exe} 表示输出的可执行文件名为 \verb|main.exe| 。随后，使用 \mintinline{bash}{./main.exe} 来运行生成的可执行文件。我们之后所有的编译都会使用这种方式。注意， \mintinline{bash}{g++} 是C++编译器，而 \mintinline{bash}{gcc} 是C编译器，二者不能混用。
+
+对于macOS用户，编译命令类似，区别在于：编译器是\mintinline{bash}{clang++}（\mintinline{bash}{clang}），而不是\mintinline{bash}{g++}（\mintinline{bash}{gcc}），且生成的可执行文件不需要加上 \verb|.exe| 后缀。
+
+对于Linux用户，编译命令类似，区别在于生成的可执行文件也不需要 \verb|.exe| 后缀。
+
+\mintinline{bash}{-g} 和 \mintinline{bash}{-O2} 都可以去掉。
+
+命令行能提供更高的编译灵活性，可以任意增加、删除、修改编译选项，如添加 \mintinline{bash}{-Wall} 来开启警告信息等。这也是我个人非常推荐的方式，尤其是对于初学者来说，能够更好地理解编译过程和编译选项的作用。
+
+\subsection{GCC with Code}\label{sec:code-with-gcc} 
+
+如果你确实想要使用Code提供的运行功能（也就是把Code当成小IDE用），那么你需要在Code中安装C/C++插件，并按以下步骤配置。
+
+\begin{remark}{}
+  VS Code 的工作基于工作区（workspace）的概念，实际上我们启用的不少插件也都是基于工作区启用的。对于C/C++扩展来说，它们的工作有不少基于当前工作区目录，并帮助你输入编译和调试命令。如果你直接打开一个C/C++文件，而不是一个工作区目录，那么这些基于工作区的插件也将会全部失效。此时，VS Code就回归其作为一个文本编辑器的本质，无法为你提供编译和调试的功能。
+
+  最简单的工作区就是一个目录。所以我们必须打开一个文件夹而不是仅打开一个文件，这样才能使用VS Code的C/C++扩展来编译和调试代码，其他扩展也大同小异。Code的其他语言扩展也大同小异。在之后，我都会用“打开一个工作区”这种说法。
+\end{remark}
+
+\begin{enumerate}
+  \item 安装C/C++插件。先前已经提到过安装哪些插件。
+  \item 在VS Code中打开一个新的工作区，创建一个C++文件 \verb|*.cpp| 或者 \verb|*.cc| ，然后随便输入一些正确的、能编译的代码并保存。
+  \item 首次编译C++代码时，VS Code会提示你创建一个 \verb|tasks.json| 文件。
+  \item 选择 \verb|C/C++: g++.exe 生成活动文件| ，这将会在项目根目录下创建一个 \verb|.vscode/tasks.json| 文件。（如果你写的是 \verb|*.c| 文件，则选择 \verb|C/C++: gcc.exe 生成活动文件| ，以使用C编译器而非C++编译器来编译C代码。）
+  \item 按下 \verb|F5| ，选择 \verb|C++ (GDB/LLDB)| ，然后选择 \verb|g++.exe build and debug active file| 。这将会在项目根目录下创建一个 \verb|launch.json| 文件。
+\end{enumerate}
+
+我们既可以通过编辑JSON文件配置编译和调试选项（请自行搜索），也可以使用UI配置相关功能。
+
+在Code中按下 \verb|Ctrl+Shift+P| ，找到 \verb|C/C++: Edit Configurations (UI)| 选项。一般地，我们需要更改以下内容：
+\begin{itemize}
+  \item 配置名称：默认即可。
+  \item 编译器路径：选择你要选用的编译器的路径。该选项一般会自动检测电脑上的编译器。
+  \item 编译器参数：留空即可。如需要，可以添加一个 \verb|-O2| 或者 \verb|-O3| 来开启编译优化，或者添加一个 \verb|-g| 来开启调试信息。但是， \verb|-g| 会严重拖慢编译速度，因此建议只在调试时开启。另，如果想使用较新的C++特性，也可以加上 \verb|--std=c++23| 之类的选项。
+  \item IntelliSense模式：根据你的系统、编译器、CPU架构选择对应的模式。该选项会为你打开对应的代码补全、语法高亮、错误警示功能。
+  \item C/C++标准：建议C17和C++17，和PKU线上代码检查的标准一致。如果不是为了考试服务，可以选择最新版本，如C++26；如果不希望使用过新的特性（如初学者），也可以选择C++11。
+\end{itemize}
+
+调试配置没有UI配置选项，我们还得老老实实地手动编辑 \verb|launch.json| 文件。当然默认调试已经够了，如果你不需要更复杂的调试功能，完全可以不修改。
+
+如果你确实做了这些事情，但是你的VS Code仍然无法编译和调试C/C++代码，那么你可能需要检查以下几点：
+\begin{itemize}
+  \item 使用 \mintinline{bash}{where g++} （在Linux和macOS中应该用 \mintinline{bash}{which g++} ）命令来确定你的编译器是不是在PATH环境变量中，另外你还需要确定上述识别出的编译器是不是你想用的那个。
+  \item 检查你的C++目录和编译器目录是否包含非ASCII字符（如汉字、空格等）。
+  \item 检查你是不是错误地使用了 \verb|gcc| 来编译C++代码。C++代码需要使用 \verb|g++| 来编译，而不是 \verb|gcc| ，这是最常见的错误之一。
+  \item 检查你的包含路径是否正确。VS Code会自动检测你的编译器和标准库，但如果你使用了自定义的路径或者安装了多个版本的编译器，可能需要手动配置包含路径。
+  \item 检查你改的几个配置文件是不是正确的配置文件、有没有保存。
+  \item 检查你的VS Code和C/C++插件是否是最新版本。有时候，旧版本的插件可能会有bug或者不兼容最新的VS Code版本。
+\end{itemize}
+一般情况下，修正的方法很简单：如果是环境变量、路径等问题，重新设置就可以；如果是误用GCC调试C++代码的问题，只需要改回G++即可；如果是配置文件问题，杀掉当前所有终端，删除 \verb|.vscode| 文件夹，然后重新编译调试就可以了。

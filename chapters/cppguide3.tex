@@ -1,0 +1,125 @@
+\chapter{STL、区间和视图}
+
+STL是C++标准库的一部分，也可以认为是最重要的一部分。它提供了许多通用的数据结构和算法，极大地提高了C++程序的开发效率。
+
+区间和视图是C++标准库最近新增的一部分，它们提供了一种更高层次的抽象，使得操作集合和序列变得更加简洁和直观。区间（Ranges）允许我们以一种声明式的方式处理数据，而视图（Views）则提供了一种惰性求值的机制，使得我们可以在不创建中间容器的情况下对数据进行操作。如果C++20成为默认的处理标准，那么区间和视图将成为C++程序设计中不可或缺的工具。
+
+本章C++标准为C++23。
+
+\section{C++的STL}
+
+STL分三部分：容器（Containers）、算法（Algorithms）和迭代器（Iterators）。容器是用来存储数据的对象，算法是对数据进行操作的函数，而迭代器则是连接容器和算法的桥梁。通过迭代器，算法可以在不同类型的容器上工作，而不需要了解容器的具体实现。但要写好C++，还是要了解一下容器的实现原理，以及相应算法的复杂度。因此，本章会以容器为纲目，展开介绍算法和迭代器，并在介绍的过程中，穿插一些算法和数据结构的基础知识。
+
+STL的容器分为三类：相同类型元素的容器、不同类型元素的容器、其他容器。
+
+相同类型元素的容器最多，它们可以存储复数个相同类型的元素。
+\begin{itemize}
+    \item 顺序表：\verb|std::array|、\verb|std::vector|、\verb|std::deque|、\verb|std::list|、\verb|std::forward_list|；
+    \item 关联容器：\verb|std::set|、\verb|std::map|、\verb|std::multiset|、\verb|std::multimap|；
+    \item 无序关联容器：\verb|std::unordered_set|、\verb|std::unordered_map|、\verb|std::unordered_multiset|、\verb|std::unordered_multimap|；
+    \item 容器适配器：\verb|std::stack|、\verb|std::queue|、\verb|std::priority_queue|；
+    \item 字符串：\verb|std::string|等；
+    \item 位集合：\verb|std::bitset|。
+\end{itemize}
+
+不同类型元素的容器较少，它们可以存储复数个不同类型的元素。只有两个：对 \verb|pair|，元组 \verb|tuple|。
+
+最后是其他容器，主要是一些特殊用途的容器，如变体 \verb|variant|，可选值 \verb|optional|，任意类型 \verb|any|，智能指针 \verb|shared_ptr|、\verb|unique_ptr|、\verb|weak_ptr|。
+
+不同容器的不同使用情况见下表。
+
+\begin{longtable}[c]{l|l|p{7cm}}
+    \caption{STL容器底层与使用场景简表}\label{tab:stl-containers}\\
+    \toprule
+    底层 & 容器 & 使用场景 \\
+    \midrule
+    \endfirsthead          % 首页表头
+
+    \multicolumn{3}{c}{\footnotesize 续表~ \ref{tab:stl-containers} }\\[.5ex]
+    \toprule
+    底层 & 容器 & 使用场景 \\
+    \midrule
+    \endhead               % 后续页表头
+
+    \midrule
+    \multicolumn{3}{r}{\footnotesize 接下页}
+    \endfoot               % 每页底部（除末页）
+
+    \bottomrule
+    \endlastfoot           % 末页底部
+
+    \multirow{2}{*}{顺序表} & \verb|std::array| & 数据全在栈上，性能较为敏感，适用于编译期的定长小缓存：存储固定的配置表、常量数据、小矩阵等。 \\
+    & \verb|std::vector| & 通用首选，各种场景都可以使用，尤其是频繁遍历、尾部增删的场景 \\
+    \midrule
+    \multirow{3}{*}{分块顺序表} & \verb|std::deque| & 适用于两头进出但中间不常访问的场景，例如消息队列、撤销重做历史记录等 \\
+    & \verb|std::stack| & LIFO逻辑，主要用于模拟递归等。 \\
+    & \verb|std::queue| & FIFO逻辑，主要用于模拟缓存等。 \\
+    \midrule
+    带SSO的顺序表 & \verb|std::string| & 一切文本处理。小字符串会存在栈上，大字符串存在堆上。切记：为节省开销，如不修改，尽量声明为常量。 \\
+    \midrule
+    单链表 & \verb|std::forward_list| & 内存极度受限、中间要插入和删除、且无需反向遍历的海量节点存储器。 \\
+    \midrule
+    双链表 & \verb|std::list| & 频繁中间插入和删除的场景，如LRU缓存等。 \\
+    \midrule
+    \multirow{4}{*}{红黑树} & \verb|std::set| & 自动去重排序 \\
+    & \verb|std::map| & 有序键值字典 \\
+    & \verb|std::multiset| & 允许少量重复元素的有序集合，多重复元素慎用 \\
+    & \verb|std::multimap| & 慎用，建议回退到 \verb|std::map| \\
+    \midrule
+    \multirow{4}{*}{哈希表} & \verb|std::unordered_set| & 高频查找的快速去重和查询，只关心存在性 \\
+    & \verb|std::unordered_map| & 需要高频查找的键值对缓存，不关心顺序 \\
+    & \verb|std::unordered_multiset| & 允许重复元素的快速计数集合 \\ 
+    & \verb|std::unordered_multimap| & 存在重大设计缺陷，不要使用。建议回退到 \verb|std::unordered_map| \\
+    \midrule
+    堆 & \verb|std::priority_queue| & 海量数据top-k筛选 \\
+    \midrule
+    \multirow{2}{*}{位集合} & \verb|std::bitset| & 编译期定长标志位，硬件多用 \\
+    & \verb|std::vector<bool>| & 动态大位图，多用于内存压缩。行为较异常，禁止在多线程使用，内存充足时可以考虑回退到 \verb|std::vector<unsigned char>| \\
+\end{longtable}
+
+\subsection{前置知识：迭代器和STL算法}
+
+迭代器是STL所有容器都有的对象，它们提供了一种统一的方式来访问容器中的元素。迭代器可以看作是指向容器中元素的指针，但它们不仅仅是指针，还提供了许多额外的功能，如遍历、修改和比较等。
+
+比如说，对于一个 \verb|std::vector<int> vec|，有
+\begin{minted}{cpp}
+auto it = vec.begin(); // it 是一个迭代器，指向 vec 的第一个元素
+auto it2 = vec.end(); // it2 是一个迭代器，指向 vec 的最后一个元素的下一个位置
+for (auto it = vec.begin(); it != vec.end(); ++it) { // 迭代器可以算术加减
+    std::cout << *it << " "; // 通过解引用迭代器访问元素
+}
+\end{minted}
+
+上述循环也可以写成以下两种形式：
+\begin{minted}{cpp}
+for(auto it : vec) { // 范围for循环，自动使用迭代器
+    std::cout << it << " "; // 直接访问元素
+}
+std::for_each(vec.begin(), vec.end(), [](int x) { // 使用算法 std::for_each
+    std::cout << x << " "; // 通过lambda函数访问元素
+});
+\end{minted}
+
+迭代器确实可以算术加减，包括：
+\begin{itemize}
+    \item 自增、自减、普通的加减。加（减）一个整数 $n$，迭代器会向前（向后）移动 $n$ 个元素。
+    \item 迭代器之间的差值。两个迭代器相减，得到的是它们之间的元素个数。因此，想知道某迭代器 \verb|it| 在容器中的索引，可以用 \verb|it - vec.begin()| 来计算。
+    \item 迭代器的比较。两个迭代器可以进行大小比较，判断它们在容器中的相对位置。
+\end{itemize}
+迭代器的算术加减也可以用 \verb|std::advance(it, n)| 来实现，它会将迭代器 \verb|it| 向前（向后）移动 $n$ 个元素。
+
+除了最基础的 \verb|begin()| 和 \verb|end()|，STL的容器还提供了其他一些迭代器，如 \verb|rbegin()|、\verb|rend()|、\verb|cbegin()|、\verb|cend()|、\verb|crbegin()|、\verb|crend()| 等。带字母 \verb|r| 的是反向迭代器，表示从后往前遍历；带字母 \verb|c| 的是常量迭代器，表示不能修改元素的值。
+
+迭代器从底层实现上，分为随机访问迭代器和顺序访问迭代器。对于支持随机访问的数据类型，如顺序表，迭代器可以直接跳转到任意位置（即 \verb|&vec[x] + y * sizeof(T)|）；而对于不支持随机访问的数据类型，如链表，迭代器必须一个一个的从头遍历到尾，不能直接跳转到任意位置。
+
+对于绝大多数算法，有两种版本：第一种是利用迭代器的普通算法，另一种是约束版本的算法（C++20）。例如要在一个表中查找第一个等于 $x$ 的元素：
+\begin{minted}{cpp}
+auto it = std::find(vec.begin(), vec.end(), x); // 普通算法，返回迭代器
+auto it2 = std::ranges::find(vec, x); // 约束版本的算法，返回迭代器
+\end{minted}
+
+部分算法允许原生多线程，适用于非常大的数据结构。当数据结构不太大时，建议不使用原生多线程。这要求应用该算法的容器必须采用随机访问迭代器（如顺序表）。其语法就是在函数后面加一个 \verb|std::execution::xx|，其中 \verb|xx| 可以是 \verb|seq|、\verb|par|、\verb|par_unseq|，分别表示顺序执行、并行执行、并行无序执行。在数据结构大小超过50万后，建议使用 \verb|par|。虽然 \verb|par_unseq| 理论上有着最快的速度，但对于不少算法——例如 \verb|std::sort|，它的实现是基于 \verb|std::stable_sort| 的，而 \verb|std::stable_sort| 是不支持 \verb|par_unseq| 的——会退化为 \verb|par|，它只在数据结构极大、对数据之间的访问独立（如 \verb|std::transform|）时，才会有明显的速度优势。因此，除非你非常了解算法的实现，否则不建议使用 \verb|par_unseq|。在数据结构小于一万时，建议使用 \verb|seq| 或不写（默认为 \verb|seq|）。此外，Clang对这个写法的支持稍差，建议使用GCC编译之。
+
+\input{chapters/cppguide3-1.tex}
+\input{chapters/cppguide3-2.tex}
+\input{chapters/cppguide3-3.tex}

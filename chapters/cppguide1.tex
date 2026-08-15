@@ -1,0 +1,1084 @@
+\chapter{从C到C++}
+
+有的同学可能会问：那为什么又来了个C++呢？C不是已经很好了吗？为什么还要搞个C++出来呢？
+
+理由很简单：C语言的确简单高效，但“太弱”，缺乏现代编程语言的特性，如OOP（面向对象编程）、泛型；其标准库也极小，很多东西都得手搓，在日常编程中这是非常痛苦的。
+
+因此，C++应运而生。C++在保留C语言高效和灵活的同时，引入了许多现代编程语言的特性，如类和对象、继承、多态、模板等，从而使得程序设计更加模块化、可维护和可扩展。此外，C++还提供了一个强大的标准库（STL），包括容器、算法和迭代器等，大大简化了日常编程任务。
+
+C++广泛应用于多种需要兼顾性能和抽象的领域，如系统软件、游戏开发、嵌入式系统和高性能计算等，著名的Chrome、Adobe全家桶、MS Office、Visual Studio都是C++写的，古老的DirectX游戏引擎\footnote{该游戏引擎最著名的作品莫过于《红色警戒2》了。}、现代的虚幻引擎\footnote{这个写出来的东西就太多了，目前大多数3A大作都是用这个引擎写的。}等也都要求用C++开发；而Unity引擎虽然允许用户使用C\#辅助开发，但其底层核心（乃至C\#的.NET运行时）也是用C++完成；Python里相当多的高性能库（如PyTorch、TensorFlow、JAX\footnote{JAX是Numpy的GPU加速版本，Google出品。}等）也是用C++写的。C和C++在事实上构成了当今高性能计算和软件开发的基石，在编程语言排名中常年稳居第三名和第二名，仅次于Python。
+
+\section{从C到C++的过渡}
+
+C++和C的基本语法几乎一致。如果已经掌握了C语言，那么C++会非常容易。本章将建立在前两章的基础之上，帮助大家顺利过渡到C++编程。
+
+本章C++标准为：C++17。
+
+\subsection{你的第一个C++程序}
+
+下面是一个最简单的C++程序，它像C一样，输出“Hello, World!”：
+\begin{minted}{cpp}
+#include <iostream> // 引入输入输出流库
+
+int main() {
+    std::cout << "Hello, World!" << std::endl; // 输出Hello, World!
+    return 0; // 返回0表示程序成功结束
+}
+\end{minted}
+
+我们发现，这个HelloWorld和C语言的HelloWorld长得很像，但确实存在一些区别：
+\begin{itemize}
+    \item 引入的头文件有区别；
+    \item 输出语句有区别。
+\end{itemize}
+
+\subsection{命名空间}
+
+命名空间是C++独有的一个特性，这里放到最前面来讲，因为极其重要。
+
+我们知道，一个软件还是程序，可能由很多人来完成。为了方便，每一个人都有可能定义自己的东西，例如功能（函数）、数据（变量）等。那么，如果两个人给自己不同的东西起了同样的名字怎么办？这时，电脑就无法区分它们了。
+
+一个简单的方法是加强沟通，减少重名的可能性。但是，这样做并不现实。有的项目可能有数百人参与，沟通成本过高；有的项目是给下游使用的，这时又不可能沟通。这个问题非常棘手。
+
+为了解决这个问题，C++引入了\textbf{命名空间}的概念。命名空间可以参照我们说过的虚拟环境概念来理解：每一个人都有自己的一个沙盒，在自己的沙盒里可以随便起名字，互不干扰。这样一来，即使两个人起了同样的名字，也不会冲突，因为它们属于不同的命名空间。
+\begin{minted}{cpp}
+    namespace Alice {
+        int value = 42; // 数据（变量）
+        void show() {   // 功能（方法）
+            std::cout << "Alice's value: " << value << std::endl;
+        }
+    }
+    namespace Bob {
+        int value = 100; // 数据（变量）
+        void show() {    // 功能（方法）
+            std::cout << "Bob's value: " << value << std::endl;
+        }
+    }
+\end{minted}
+这样，两者并不冲突。
+
+但是新的问题又来了：有时候，别人在他们的命名空间里写了一些东西，而这些东西又是我们想要的。为了方便起见，肯定不能写第二遍。那么，我们该怎么办呢？可以这样写：
+\begin{minted}{cpp}
+    Alice::show(); // 调用Alice命名空间中的show函数
+    Bob::show();   // 调用Bob命名空间中的show函数
+\end{minted}
+于是困扰我们的重名问题就彻底解决了。
+
+为了帮助我们更好的开发，C++将标准库中的几乎所有函数、对象等都放在了“标准”命名空间 \verb|std| 中。于是，我们在使用标准库中的函数、对象时，就需要加上 \verb|std::| 前缀。
+
+为了方便起见，我们可以使用 \verb|using| 关键字来引入命名空间：
+\begin{minted}{cpp}
+    using namespace std; // 引入std命名空间
+    cout << "Hello, World!" << endl; // 直接调用std::cout和std::endl
+\end{minted}
+但是这样做风险巨大：这会把整个标准命名空间都引进来，容易导致重名冲突等问题。比方说，你自己写了个 \verb|swap|，而标准库中也有一个 \verb|swap|，那么就冲突声明（或重声明）了，编译器就会报错。
+
+因此，\textcolor{red}{\bfseries 严格禁止在头文件中使用 \mintinline{cpp}{using namespace std;}！}这会污染全局的命名空间：头文件是写完以后给别人用的，绝对禁止污染他人的命名空间。即使在源文件中使用 \verb|using namespace std;| 也要谨慎，最好只在块中使用，避免污染全局命名空间。
+
+除此之外，也可以仅引入需要的函数或对象：
+\begin{minted}{cpp}
+    using std::cout; // 仅引入std命名空间中的cout对象
+    using std::endl; // 仅引入std命名空间中的endl对象
+    cout << "Hello, World!" << endl; // 直接调用cout和endl
+\end{minted}
+这样也不会污染其他的东西，而一般的C++程序员也不会去给对象取名 \verb|cout| 或 \verb|endl|，所以不会发生重名冲突，基本可以认为是安全的。
+
+\subsection{C++的标准头文件}
+
+C++的头文件和C有些微的不同。C++的标准头文件包括三种：
+\begin{itemize}
+    \item C++自己的头文件：这些头文件没有后缀名，直接使用 \verb|#include <iostream>| 这样的形式引入。它们是C++标准库的一部分，提供了C++特有的功能和类，如输入输出流、字符串类、容器类等。
+    \item 从C移植过来的头文件：这些头文件以 \verb|c| 开头，并且没有后缀名，如 \verb|#include <cstdio>|、\verb|#include <cstdlib>| 等。它们是C标准库的一部分，但经过C++的改造和封装，使其更适合C++的编程风格和特性。
+    \item C自己的头文件：这些头文件以 \verb|.h| 结尾，如 \verb|#include <stdio.h>|、\verb|#include <stdlib.h>| 等。它们是C标准库的一部分，提供了C语言的基本功能和接口。
+\end{itemize}
+建议使用前两种头文件，因为它们是C++标准库的一部分，经过C++的改造和封装，更适合C++的编程风格和特性。使用第三种头文件可能会导致一些兼容性问题和命名冲突。
+\begin{minted}{cpp}
+#include <iostream> // C++标准库头文件
+std::cout << "Hello, World!" << std::endl; // 使用std命名空间中的cout和endl
+#include <cstdio> // C标准库头文件（经过C++改造）
+std::printf("Hello, World!\n"); // 使用std命名空间中的printf。一般直接 printf 也是可以的，但标准是有 std 的
+#include <stdio.h> // C标准库头文件（原始C头文件）
+printf("Hello, World!\n"); // 使用全局命名空间中的printf
+\end{minted}
+
+\subsection{基本类型的变量}
+
+C++在C的基础上引入了新的基本类型：\verb|bool|。其行为和 \verb|<stdbool.h>| 中的 \verb|bool| 一样，取值为 \verb|true| 或 \verb|false|；当使用 \verb|bool| 类型的变量参与运算时，编译器会自动将其转换为整数类型，\verb|true| 对应整数值 1，\verb|false| 对应整数值 0。于是，条件表达式正式拥有了自己的类型，即 \verb|bool| 类型，而不再是整数类型。
+
+\paragraph{变量的声明和初始化}
+
+C++的变量声明和C语言一样，支持在声明时进行初始化。C++有以下几种声明（定义、初始化）变量的方式：
+\begin{minted}{cpp}
+int a = 1; // 最常见的初始化
+int a(1); // 构造函数风格的初始化
+int a{1}; // 花括号初始化
+\end{minted}
+说来有趣，C++标准实际上推荐最后一种初始化方式。这三种初始化的意思分别是：
+\begin{itemize}
+        \item \verb|int a = 1;|：和C一样，“有个变量a，它的类型是int，初始值是1”；
+        \item \verb|int a(1);|：“用1来构造一个int类型的变量a”；
+        \item \verb|int a{1};|：“用1来对a进行列表初始化”，这样不会发生隐式类型转换，避免了潜在的类型安全问题。
+\end{itemize}
+之后我们会混用这些初始化方式。虽然标准推荐最后一种，但大家最终还是第一种写的最多。
+
+\paragraph{变量的运算} 和C完全一样，没有任何区别。
+
+\paragraph{常变量和常量} 常变量（也叫不可变变量、只读变量、运行时常量）、常量（也叫编译期常量）往往笼统地称为常量。它们一旦确定就不会\textbf{在程序运行时}改变，任何试图对它们进行运行时更改的操作都会使得编译不通过。常量的值应当在声明时确定，可以通过赋值或者计算得到。它们的名字通常使用大写字母来表示，以便于和变量区分。
+
+声明常变量的方法和C差不多：
+\begin{minted}{cpp}
+const int MAX_VALUE = 100;
+const int P = a + b; // 这里的a和b可以是变量
+\end{minted}
+
+而常量也仅仅是把 \verb|const| 换成 \verb|constexpr|。常量的值在编译的时候值就确定了，不过因此也需要在定义中就写明它的值。常量也可以通过计算得到，计算在编译时进行，可以节省程序运行时间，但是要求用于计算的东西也必须是常量、字面值（直接写出来的值）、\verb|constexpr| 函数等。
+
+\begin{minted}{cpp}
+constexpr double E = 2.71828;
+constexpr double PI = 3.14159;
+constexpr double EPI = E * PI;
+\end{minted}
+
+现代C++中，常变量不依靠运行时初始化来确定其数值时，会被编译器优化为常量。因此，C++的变量/常量声明时，编译器的表现可以如表~\cref{tab:variable_constant}所示。
+
+\begin{minted}{cpp}
+    int sqr(int x) { return x * x; } // 普通函数
+    const int sqr_c(const int x) { return x * x; } // const函数
+    constexpr int sqr_ce(const int x) { return x * x; } // constexpr函数，这类函数可以在编译期求值，也可以在运行时求值
+    consteval int sqr_cv(const int x) { return x * x; } // consteval函数，这类函数必须在编译期求值
+\end{minted}
+
+\begin{longtable}[c]{lll}
+    \caption{变量/常量声明与编译器表现}\label{tab:variable_constant}\\
+    \toprule
+    声明 & 编译器表现 & 理由 \\
+    \midrule
+    \endfirsthead          % 首页表头
+
+    \multicolumn{3}{c}{\footnotesize 续表~ \ref{tab:variable_constant} }\\[.5ex]
+    \toprule
+    声明 & 编译器表现 & 理由 \\
+    \midrule
+    \endhead               % 后续页表头
+
+    \midrule
+    \multicolumn{3}{r}{\footnotesize 接下页}
+    \endfoot               % 每页底部（除末页）
+
+    \bottomrule
+    \endlastfoot           % 末页底部
+
+    \texttt{int a0 = 5;}  & 变量 & 显然 \\
+    \rowcolor{blue!15} \texttt{const int a1 = 5;}  & 常量 & 不依赖运行时初始化 \\
+    \texttt{constexpr int a2 = 5;}  & 常量 & 字面值 \\
+    \texttt{const int a3 = a0;}  & 常变量 & 依赖运行时值 \texttt{a0}  \\
+    \rowcolor{red!15} \texttt{constexpr int a4 = a0;}  & 编译失败 & 严格常量不能用运行时值初始化 \\
+    \texttt{int a5 = sqr(1);}  & 变量 & 显然 \\
+    \texttt{const int a6 = sqr(1);}  & 常变量 & 依赖运行时函数 \\
+    \rowcolor{red!15} \texttt{constexpr int a7 = sqr(1);}  & 编译失败 & 严格常量不能用运行时函数初始化 \\
+    \texttt{int a8 = sqr\_c(1);}  & 变量 & 显然 \\
+    \texttt{const int a8 = sqr\_c(1);}  & 常变量 & 依赖运行时函数 \\
+    \rowcolor{red!15} \texttt{constexpr int a9 = sqr\_c(1);}  & 编译失败 & 严格常量不能用运行时函数初始化 \\
+    \texttt{int a10 = sqr\_ce(1);}  & 变量 & 显然 \\
+    \rowcolor{blue!15} \texttt{const int a11 = sqr\_ce(1);}  & 常量 & 该函数接受常量则在编译期初始化 \\
+    \texttt{const int a12 = sqr\_ce(a0);}  & 常变量 & 依赖运行时值 \texttt{a0}  \\
+    \texttt{constexpr int a13 = sqr\_ce(1);}  & 常量 & 显然 \\
+    \rowcolor{red!15} \texttt{constexpr int a14 = sqr\_ce(a0);}  & 编译失败 & 严格常量不能用运行时值初始化 \\
+    \rowcolor{red!15} \texttt{int a15 = sqr\_cv(1);}  & 编译失败 & 立即函数不可以在运行时调用 \\
+    \rowcolor{blue!15} \texttt{const int a16 = sqr\_cv(1);}  & 常量 & 显然 \\
+    \rowcolor{red!15} \texttt{const int a17 = sqr\_cv(a0);}  & 编译失败 & 立即函数不可以在运行时调用 \\
+    \texttt{constexpr int a18 = sqr\_cv(1);}  & 常量 & 显然 \\
+    \rowcolor{red!15} \texttt{constexpr int a19 = sqr\_cv(a0);}  & 编译失败 & 立即函数不可以在运行时调用 \\
+\end{longtable}
+
+\paragraph{变量类型的转换}
+
+C风格的变量类型强转是 \mintinline{c}{(int)a}。在C++中，这个可以使用，其行为是：尝试常变转换、数值转换、指针转换、按位重解释（见下文），并且不检查类型安全性，隐性语义极为复杂，容易出错，出错了也不容易定位。C++引入了以下四种类型转换：
+\begin{itemize}
+    \item \mintinline{cpp}{static_cast<T>(expr)}：编译期安全的静态类型转换，包含数值提升和截断、枚举整型互转、子类指针转父类指针、无类型指针转其他。这是最常用的类型转换方式，安全性较高；
+    \item \mintinline{cpp}{dynamic_cast<T>(expr)}：运行期安全的动态类型转换，仅用于父类指针转子类指针，要求父类必须有虚函数。运行时会检查类型安全性，如果不安全则返回空指针；
+    \item \mintinline{cpp}{const_cast<T>(expr)}：用于去除或添加对象的 \verb|const| 或 \verb|volatile| 属性。它不会改变对象的实际类型，只是改变了对对象的访问权限。使用 \verb|const_cast| 可以在不改变对象本身的情况下，允许对其进行修改，但需要注意的是，如果原对象本身是 \verb|const| 的，那么通过 \verb|const_cast| 修改它的值是未定义行为；
+    \item \mintinline{cpp}{reinterpret_cast<T>(expr)}：按位重解释类型转换，将一个类型的指针或引用转换为另一个类型的指针或引用。它不会改变对象的实际值，只是改变了对该值的解释方式。这是危险的转换方式。除非我们知道在做什么，否则不要使用之。
+\end{itemize}
+
+举例说明：
+\begin{minted}{cpp}
+double d = 3.14;
+int a = static_cast<int>(d);  // 使用static_cast进行数值转换
+int a = (int)d;  // C风格的强转，也行
+
+const int c = 42;
+int* p = const_cast<int*>(&c);  // 使用const_cast去掉const属性
+// *p = 100; // 但是修改原变量的值是个UB
+
+class Base;
+class Derived : public Base;
+// 注意：以上两行代码仅用于说明继承关系，实际过不了编译
+Base* b = new Derived();
+Derived* d = dynamic_cast<Derived*>(b);  // 使用dynamic_cast将父类指针转为子类
+Derived* d = static_cast<Derived*>(b);  // 使用static_cast转型（不安全，但是能过编译）
+
+uintptr_t ptr = reinterpret_cast<uintptr_t>(b);  // 使用reinterpret_cast将指针转换为整数
+\end{minted}
+
+这四种类型转换虽然看起来繁琐，但功能单一、语义明确。要是危险或者出错了，编译器会兜底。这样就可以避免很多潜在的错误。
+
+\paragraph{变量类型推断}
+
+C++11引入了自动类型推断，使用关键字 \verb|auto| 和 \verb|decltype|。前者由编译器推断，后者由已知对象的类型推断。
+\begin{minted}{cpp}
+auto a = 1; // a的类型是int
+auto b = 1.0; // b的类型是double
+auto c = 'a'; // c的类型是char
+auto d = true; // d的类型是bool
+\end{minted}
+
+必须注意，\verb|auto| 不是一个类型，而是一个占位符，编译器会根据变量的初始值来推断出一个具体的类型。因此，使用 \verb|auto| 时必须确保变量有一个明确的初始值，否则编译器无法推断出类型，会导致编译错误。我们也绝对不能把 \verb|auto| 当成一个万能的类型来使用，例如：
+\begin{minted}{cpp}
+auto x; // 错误，缺少初始值，编译器无法推断出类型
+
+auto x = 5; // 正确，编译器推断x的类型为int
+x = "Hello"; // 错误，x的类型已经被推断为int，不能赋值为字符串
+\end{minted}
+
+不要滥用 \verb|auto| ，因为这会使得代码的可读性降低，尤其是当变量的类型不明显时。我们只推荐在\textbf{变量的类型是确定的}、\textbf{类型的名称非常冗长}、\textbf{你知道这个变量的类型是什么或者大概是什么}的情况下使用类型推断，例如 \mintinline{cpp}|auto it = std::max_element(v.begin(), v.end());| 中， \verb|it| 的类型是 \verb|std::vector<int>::iterator| 是确定的，这时候写出来这个类型就显得冗长了，使用 \verb|auto| 可以让代码更简洁。但如果真写出来 \mintinline{cpp}{auto x = 5;} 这种代码，那就属于滥用了，是不提倡的。
+
+如果变量的类型确实不确定（例如变量类型会随着初始化方式的不同而改变），这时候可以使用模板函数或模板类，而不是使用 \verb|auto| 。如果你知道变量的类型是一个确定的类型，但是你不知道具体是什么类型，建议你先搞清楚这个变量的类型再写代码，否则几乎必然会出错。
+
+而 \verb|decltype| 基本上只有一种用法：函数返回值后置。
+\begin{minted}{cpp}
+auto add(int a, int b) -> decltype(a + b) { // 函数返回值后置
+    return a + b;
+}
+\end{minted}
+
+这么写的主要原因是避免头重脚轻：
+\begin{minted}{cpp}
+std::vector<int>::iterator max_element(std::vector<int>::iterator begin, std::vector<int>::iterator end); // 头部太长不美观
+auto max_element(std::vector<int>::iterator begin, std::vector<int>::iterator end) -> decltype(begin); // 头部短，返回值后置，好看
+\end{minted}
+虽然有些多此一举，但这是C++的风格，习惯就好。
+
+\paragraph{类型别名}
+
+在C++中，允许给一个类型定义别名。这可以通过 \verb|typedef| 或 \verb|using| 关键字来实现。
+
+\begin{minted}{cpp}
+typedef int Integer;  // 使用typedef定义别名
+using Real = double;  // 使用using定义别名
+\end{minted}
+
+\subsection{C++的输入、输出、格式化}
+
+C++17以前的输入输出是比较烦人的。从C++20引入\verb|std::format|之后，C++的输入输出终于可以像Python一样方便了。不过我们讲的是C++17，所以我们还是先讲讲C++17以前的输入输出。这是因为，C++17是迄今为止\textbf{最重要}的C++版本，在不提及版本时默认指C++17。不过近年来，随着新标准的完善，C++的默认版本正在逐渐向C++20靠拢，GCC也在考虑将默认版本变更为C++20。
+
+\paragraph{输入输出流}
+
+C++的输入输出是通过流（stream）来实现的：把数据看成正在流动的内容。输入输出流在头文件 \verb|<iostream>|。
+
+流可以是输入流（如\verb|std::cin|）或输出流（如\verb|std::cout|），它们分别对应标准输入（stdin）和标准输出（stdout）。流的操作符是 \verb|<<| 和 \verb|>>|，分别用于输出和输入。
+
+\begin{minted}{cpp}
+#include <iostream>
+int main() {
+    int age;
+    std::cout << "Enter your age: "; // 输出提示信息
+    std::cin >> age; // 从标准输入流读取整数
+    std::cout << "You are " << age << " years old." << std::endl; // 输出结果
+    return 0;
+}
+\end{minted}
+
+\mintinline{cpp}{std::endl} 是一个操纵符，其作用是输出一个换行符、刷新输入缓冲区，等价于 \mintinline{cpp}{"\n" << std::flush}。所谓“缓冲区”，指的是输出流在输出数据时会先将数据存储在一个临时的内存区域（缓冲区）中，等到缓冲区满了或者遇到换行符时才会将数据真正输出到屏幕上。但需要注意，频繁刷新缓冲区会带来性能问题，因此在不需要立即输出的情况下，尽量避免使用 \verb|std::endl|，而是使用 \verb|"\n"| 来换行，或考虑其他的IO手段。
+
+在此类输入输出中，如涉及运算，\textbf{必须使用括号}，否则会出现优先级错误的问题。\mint{c}{std::cout << "两数之和为：" << (a + b) << std::endl; // 正确}
+
+当然C风格的输入输出没有被禁止，它们被定义在 \verb|<cstdio>| 中，使用 \verb|printf|、\verb|scanf| 等函数。C++17以前的输入输出流和C风格的输入输出函数各有优缺点，C++17以前的输入输出流更安全、更灵活，但性能较低；C风格的输入输出函数性能较高，但不够安全。但要用就一定要用同一套，\textcolor{red}{\bfseries 一定不要一句C一句C++，或者说不要一句printf一句cout（反过来也不行）。} 这会导致缓冲区混乱，输出顺序不确定，甚至可能出现死锁等问题。要么全用C，要么全用C++，不要混用。
+
+另外，\verb|std::cin| 和 \verb|std::cout| 是“对象”，不是“函数”，详见\nameref{sec:oop}。
+
+在C++中，除了 \verb|std::cout| ，还有 \verb|std::cerr| 和 \verb|std::clog| 两个标准流对象用于错误输出和日志输出。它们的用法和 \verb|std::cin| 、\verb|std::cout| 类似，但有一些区别：
+\begin{itemize}
+    \item \verb|cout| 是\textbf{行缓冲}的，也就是缓冲到换行符或缓冲区满才输出，可以重定向到文件或其他设备（例如 \verb|./program > file| ），一般用于正常输出，关联的设备是标准输出设备（stdout）。
+    \item \verb|cerr| 是\textbf{无缓冲}的，也就是每次输出都会立即显示，不会缓冲，常用作错误信息的输出。其关联的设备也不是标准输出设备，而是标准错误设备（stderr）。重定向方式例如 \verb|2> error.log| ，其中 \verb|2>| 表示重定向标准错误输出。
+    \item \verb|clog| 是\textbf{全缓冲}的，也就是缓冲区满才输出，可以重定向到文件或其他设备，一般用于日志信息的输出。虽然该流对象也关联标准错误设备（stderr），但其行为更像 \verb|cout| 。重定向方式同 \verb|cerr| 。
+\end{itemize}
+
+\paragraph{格式化输出}
+
+有时候，我们需要对输入输出进行一些格式化操作，例如设置小数点位数、对齐方式等。除了使用 \verb|printf| 的格式化字符串外，C++提供了一些操纵符（manipulator）来实现这些功能，这些操纵符被定义在 \verb|<iomanip>| 中。常用的操纵符有：
+\begin{itemize}
+    \item \verb|std::setw(n)|：设置输出宽度为 \verb|n|，不足部分用空格填充；
+    \item \verb|std::setprecision(n)|：设置浮点数的输出精度为 \verb|n| 位；
+    \item \verb|std::fixed|：和 \verb|std::setprecision(n)| 配合使用，保证小数位数为定长的 \verb|n| 位；
+    \item \verb|std::scientific|：以科学计数法格式输出浮点数；
+    \item \verb|std::left|、\verb|std::right|、\verb|std::internal|：设置输出对齐方式，分别为左对齐、右对齐和内部对齐；
+    \item \verb|std::hex|、\verb|std::dec|、\verb|std::oct|：设置整数的输出进制，分别为十六进制、十进制和八进制；
+    \item \verb|std::boolalpha|、\verb|std::noboolalpha|：设置布尔值的输出格式，分别为 \verb|true/false| 和 \verb|1/0|。
+\end{itemize}
+
+我们可以使用这些操纵符来格式化输出一个表格：
+\begin{minted}{cpp}
+#include <iostream>
+#include <iomanip>  // 引入操纵符库
+int main() {
+    std::cout << std::left << std::setw(10) << "Name" << std::setw(5) << "Age" << std::setw(10) << "GPA" << std::endl;
+    std::cout << std::left << std::setw(10) << "Alice" << std::setw(5) << 20 << std::setw(10) << std::fixed << std::setprecision(2) << 3.5 << std::endl;
+    std::cout << std::left << std::setw(10) << "Bob" << std::setw(5) << 22 << std::setw(10) << std::fixed << std::setprecision(2) << 3.8 << std::endl;
+    return 0;
+}
+\end{minted}
+当然这个还是太冗繁了。用过这些东西，就会感觉C++20的 \verb|std::format| 是多么的方便了。
+
+\paragraph{清洗输入}
+
+对于确定数量的干净输入，即空格或换行符分隔、无其他分隔符（如逗号）的输入，直接\verb|std::cin|就行：
+\begin{minted}{cpp}
+int a, b, c;
+// 假设输入格式为：1 2 3
+std::cin >> a >> b >> c;  // 读入三个整数
+\end{minted}
+
+对于不确定数量的干净输入，可以使用循环：
+\begin{minted}{cpp}
+int x;
+while (std::cin >> x) { // 读入直到EOF或错误
+    // 处理x
+}
+// 或者使用 std::cin.eof() 、std::cin.fail() 等方法判断输入状态
+while (!std::cin.eof()) {
+    std::cin >> x;
+    if (std::cin.fail()) {
+        // 处理输入错误
+        break;
+    }
+    // 处理x
+}
+\end{minted}
+
+如果遇到脏输入，情况就复杂得多了。这里给出两种手段：字符串流，以及用\verb|std::cin|的“偷看”功能。
+
+字符串流是最通行的手段，它的原理是：先把整行输入读入一个字符串，然后再用字符串流来处理这个字符串。这样就可以使用 \verb|std::getline| 来读取每个分隔符之间的内容了。
+\begin{minted}{cpp}
+#include <iostream>
+
+int main(){
+    // 假设输入是1,2,3，我们要以逗号为分隔符读取每个数字
+    std::string line;
+    std::getline(std::cin, line); // 读取整行输入
+    std::istringstream iss(line); // 将整行输入放入字符串流中
+    std::string token;
+    while (std::getline(iss, token, ',')) { // 以逗号为分隔符读取每个token
+        int number = std::stoi(token); // 将字符串转换为整数
+        std::cout << number << std::endl; // 输出每个数字
+    }
+}
+\end{minted}
+
+或者用“偷看”方法：
+\begin{minted}{cpp}
+#include <iostream>
+
+int main() {
+    int x;
+    char c;
+    while (std::cin >> x) { // 读入整数
+        std::cout << "Read integer: " << x << std::endl;
+        c = std::cin.peek(); // “偷看”下一个字符
+        if (c == ',') // 如果是逗号，说明还有下一个整数
+            std::cin.ignore(); // 那我忽略下一个字符（即逗号）
+        else if (c == '\n' || c == EOF) // 如果是换行符或EOF，说明输入结束
+            break;
+        else { // 如果是其他字符，说明输入格式错误
+            std::cerr << "Invalid input format!" << std::endl;
+            break;
+        }
+    }
+    return 0;
+}
+\end{minted}
+“偷看”比字符串流更好理解，但完全是特解。字符串流比偷看要通用。如果输入格式复杂，建议使用字符串流。当然，感觉不如C++20的 \verb|std::ranges| 和 \verb|std::format| 方便。
+
+\subsection{控制程序的执行流程}
+
+这个没什么好说的，和C语言完全一样，除了 \verb|switch| 语句的 \verb|case| 标签可以使用常量表达式（\verb|constexpr|）而不仅仅是整数常量表达式。
+
+但 \verb|if| 的功能变多了，接下来分别说明。\verb|for| 的功能也变多了，会在之后的STL容器中介绍。此外，这里还会介绍一种新的“循环”，即折叠表达式，在\nameref{sec:foldexpr}中详细介绍。
+
+\paragraph{if初始化} 除了传统的 \verb|if| 写法，下面这个写法也可以：
+\begin{minted}{cpp}
+if (int x = compute(); x > 0) {
+    // 使用x
+} else {
+    // 使用x
+}
+\end{minted}
+这是C++17引入的 \verb|if| 初始化语句，它允许在 \verb|if| 条件中声明和初始化一个变量，并且该变量的作用域仅限于 \verb|if| 语句块内。这种写法可以减少变量的作用域，避免命名冲突，提高代码的可读性。
+
+\paragraph{编译期if} C++17引入了 \verb|if constexpr| 语句，它允许在编译期根据条件选择性地编译代码块。与普通的 \verb|if| 语句不同，\verb|if constexpr| 的条件必须是一个编译期常量表达式（\verb|constexpr|），并且在编译时会根据条件的真假来决定是否编译相应的代码块。
+\begin{minted}{cpp}
+template <typename T>
+void print_type_info() {
+    if constexpr (std::is_integral_v<T>) {
+        std::cout << "T is an integral type." << std::endl;
+    } else if constexpr (std::is_floating_point_v<T>) {
+        std::cout << "T is a floating-point type." << std::endl;
+    } else {
+        std::cout << "T is some other type." << std::endl;
+    }
+} // 可以先不理解这些 std::is_integral_v<T> 之类的东西，只需要知道它们是编译期常量表达式，返回值为true或false即可
+\end{minted}
+这个东西在部分情况下等价于宏 \verb|#if|，但比宏更安全、更灵活。它可以用于模板编程、条件编译等场景，减少代码冗余，提高代码的可维护性。
+
+\subsection{复合数据结构}
+
+\paragraph{结构体和联合体} 这里和C也基本一样，但不需要多写一个 \verb|typedef| （或 \verb|struct|）了。C++中，结构体和联合体的定义可以直接使用类型名，而不需要额外的 \verb|typedef| 声明。例如：
+\begin{minted}{cpp}
+struct Point {
+    int x;
+    int y;
+};
+Point p1; // 直接使用类型名 Point 定义变量 p1
+\end{minted}
+联合体也类似。
+
+\paragraph{枚举类型} C++11引入了强类型枚举（scoped enumeration），使用关键字 \verb|enum class| 来定义。强类型枚举具有以下特点：
+\begin{itemize}
+    \item 枚举成员具有自己的作用域，避免了命名冲突；
+    \item 枚举成员的类型是枚举类型本身，而不是整数类型；
+    \item 可以指定枚举类型的底层类型，默认是 \verb|int|。
+\end{itemize}
+之所以不讲C的传统枚举，是因为传统枚举功能实在有限，且容易出错，所以写得不多。
+
+强枚举可以这么写：
+\begin{minted}{cpp}
+    enum class Color : std::uint8_t { RED, GREEN=5, BLUE };
+\end{minted}
+这定义了一个枚举 \verb|Color|，其底层类型为 \verb|std::uint8_t|，枚举成员为 \verb|RED|、\verb|GREEN| 和 \verb|BLUE|。其中，\verb|GREEN| 的值被显式指定为 5，而 \verb|RED| 和 \verb|BLUE| 的值分别为 0 和 6（因为 \verb|BLUE| 是在 \verb|GREEN| 之后定义的）。
+
+调用枚举，必须使用作用域限定符：
+\begin{minted}{cpp}
+Color c = Color::RED; // 使用作用域限定符访问枚举成员
+int value = static_cast<int>(c); // 将枚举类型转换为整数类型，不再接受隐式转换
+\end{minted}
+
+可以看出，这种枚举有类型安全性，也有作用域隔离。
+
+枚举作为一个数据类型很笨，不仅没有任何方法，也不能进行运算，唯一的作用是定义一组常量，便于阅读；此外，在 \verb|switch| 语句中用得较多，因为编译器会帮忙检查是否覆盖了所有枚举值。
+
+\paragraph{数组} C++风格的数组在STL中定义，分为静态（编译时确定）和动态（运行时确定）两种。
+
+\subparagraph{静态数组array} 静态数组固定在栈上，大小在编译时确定，类似不开VLA的C数组。
+\begin{minted}{cpp}
+    #include <array>
+    std::array<int, 5> arr = {1, 2, 3, 4, 5}; // 定义一个包含5个整数的静态数组
+    int a = arr[0]; // 访问数组元素
+    int b = arr.at(0); // 更建议的写法
+\end{minted}
+
+这东西的实现和C风格数组相似，但一个重要的区别是：它是一个复杂类，而不是基本类型，有很多方法能够操作；另一个重要的区别是，在作为函数参数传递时，它\textbf{不会退化}为指针，从而避免了信息丢失的问题。
+
+也就是说：
+\begin{minted}{cpp}
+void foo(std::array<int, 10> arr) {
+    std::cout << arr.size() << std::endl; // 可以获取数组的大小
+}
+
+void bar(int arr[10]) {
+    std::cout << sizeof(arr) / sizeof(arr[0]) << std::endl; // 这里会输出错误的结果，因为arr退化为指针，sizeof(arr)得到的是指针大小而非数组大小
+}
+\end{minted}
+这些方法会在STL容器中详细介绍。
+
+\subparagraph{动态数组vector} 动态数组固定在堆上，大小在运行时确定。底层实现是：划分一块连续的内存空间，开头是一个指针，指向这块内存空间；然后在这块内存空间中存储数据。如果向其中添加元素，可能会导致内存空间不够用，此时就会重新分配一块更大的内存空间，并将原来的数据拷贝过去。STL中的 \verb|std::vector| 就是动态数组的实现。
+\begin{minted}{cpp}
+    #include <vector>
+    std::vector<int> vec = {1, 2, 3, 4, 5}; // 定义一个包含5个整数的动态数组
+    vec.push_back(6); // 在数组末尾添加一个元素
+    int a = vec[0]; // 访问数组元素
+    int b = vec.at(0); // 更建议的写法
+    vec.pop_back(); // 删除数组末尾的元素
+    vec.size(); // 获取数组的大小
+\end{minted}
+使用vector能够避免和C一样用malloc和free来直接操作内存，省心省力。关于vector的更多用法和性能问题，STL容器中会详细介绍。
+
+\subparagraph{字符串} C++风格的字符串是 \verb|std::string|，它是一个复杂类，提供了丰富的字符串操作方法。C++风格的字符串可以动态增长，底层实现类似于动态数组。它的使用方法如下：
+\begin{minted}{cpp}
+    #include <string>
+    std::string str = "Hello, World!"; // 定义一个字符串
+    str += " How are you?"; // 字符串拼接
+    char c = str[0]; // 访问字符串中的字符
+    char d = str.at(0); // 更建议的写法
+    std::cout << str << std::endl; // 输出字符串
+    std::cout << str.size() << std::endl; // 获取字符串长度
+    std::cout << str.substr(0, 5) << std::endl; // 获取子字符串，从索引0开始，长度为5
+    std::cout << str.find("World") << std::endl; // 查找子字符串，返回索引位置，如果未找到则返回std::string::npos
+    str.replace(7, 5, "C++"); // 替换子字符串，从索引7开始，长度为5，替换为"C++"
+    str.erase(5, 7); // 删除子字符串，从索引5开始，长度为7
+    str.clear(); // 清空字符串
+\end{minted}
+
+这些方法会在STL容器中也会详细介绍。
+
+\subsection{C++函数的高级特性}
+
+C++相比C的函数有许多扩展特性。基本的定义方式其实没变，并加了一个返回值后置的写法：
+\begin{minted}{cpp}
+type function_name(parameter_list) {
+    // 函数体
+}
+
+auto function_name(parameter_list) -> return_type {
+    // 函数体
+}
+\end{minted}
+这两个写法的含义是一样的。
+
+\paragraph{函数的重载}
+
+函数重载是C++中的一个重要特性，它允许我们定义多个同名的函数或运算符，但它们的参数列表或返回类型不同。写一个例子就好了：
+
+\begin{minted}{cpp}
+int add(int a, int b) {
+    return a + b;
+}
+float add(float a, float b) {
+    return a + b;
+}
+struct v2d {float x; float y;}
+v2d add(v2d a, v2d b) {
+    return {a.x + b.x, a.y + b.y};
+}
+\end{minted}
+以上代码就是重载的一个鲜活实例。我们重载了加法运算符，使得它可以用于整数、浮点数和二维向量的加法操作。合适的重载可以使代码更简洁、更易读。在调用时，编译器会根据传入的参数类型来选择合适的函数进行调用，从而实现多态性。
+
+不能仅通过返回类型来区分重载函数。在重载函数时，必须通过参数类型或数量的不同来区分不同的函数。
+
+\paragraph{运算符重载}
+
+函数重载有一个特殊情形：运算符重载。这是因为，C++将部分运算符视作函数的特殊形式，因此可以对这些运算符进行重载，使其能够作用于自定义类型。
+\begin{minted}{cpp}
+struct v2d {float x; float y;}
+v2d operator+(const v2d& a, const v2d& b) {
+    return {a.x + b.x, a.y + b.y};
+}
+v2d p1 = {1.0f, 2.0f};
+v2d p2 = {3.0f, 4.0f};
+v2d p3 = p1 + p2; // 使用重载的加法
+\end{minted}
+以上代码重载了加法运算符，使得我们可以直接使用 \verb|+| 来对两个 \verb|v2d| 类型的对象进行加法操作，而不需要调用一个专门的函数。这种方式使得代码更直观、更符合数学表达式的习惯。
+
+\paragraph{C++函数的编译原理}
+
+C++函数之所以支持重载，是因为其编译原理与C不同。C编译时，符号表中只记录函数名。而C++编译时，符号表中记录了函数名、参数类型和返回类型等信息，这样就可以区分同名的函数。编译器在编译时会根据函数调用的上下文来选择合适的重载函数进行调用。
+
+例如，假设我们有以下两个函数：
+\begin{minted}{cpp}
+int add(int a, int b);
+double add(double a, double b);
+\end{minted}
+这个函数在C中是不允许的，因为函数名称相同，编译器不能区分它们，会报错“冲突声明”。但是在C++中是允许的，因为编译器会对函数名称进行修饰，生成不同的符号名，例如：
+\begin{minted}{gas}
+call _Z3addii  # 对应 int add(int, int)
+call _Z3adddd  # 对应 double add(double, double)
+\end{minted}
+上述代码中， \verb|_Z3addii| 和 \verb|_Z3adddd| 分别是两个 \verb|add| 函数的修饰名称，包含了参数类型的信息，从而使得编译器能够区分它们。但是我们发现一个问题：函数的返回值是不参与名称修饰的，这意味着如果两个函数只有返回值类型不同，而参数列表相同，那么它们仍然会冲突，编译器会报错。
+
+但这就会导致一个问题：如果我们需要在C++中调用C语言的函数怎么办？因为C语言不支持名称修饰，而C++支持名称修饰，这就会导致链接错误。为了解决这个问题，C++提供了 \verb|extern "C"| 关键字，它告诉编译器按照C语言的方式来处理函数名称，从而避免名称修饰。例如：
+\begin{minted}{cpp}
+extern "C" {
+    void c_function(int a);
+}
+\end{minted}
+这里的 \verb|extern "C"| 告诉编译器， \verb|c_function| 是一个C语言函数，编译器不会对其名称进行修饰，从而可以在C++中正确调用C语言的函数。当然，这也会有所牺牲，在该块中的函数和变量不能使用C++的特性，例如函数重载、命名空间等。
+
+\paragraph{函数的默认参数值}
+
+C++允许在函数声明中为参数提供默认值，这样在调用函数时可以省略这些参数。默认参数值必须从右向左依次提供，也就是说，如果一个参数有默认值，那么它右边的所有参数也必须有默认值。例如：
+\begin{minted}{cpp}
+void print_message(const std::string& message, int times = 1) {
+    for (int i = 0; i < times; ++i) {
+        std::cout << message << std::endl;
+    }
+}
+print_message("Hello"); // 输出一次 "Hello"
+print_message("Hello", 3); // 输出三次 "Hello"
+\end{minted}
+这个例子中，函数 \verb|print_message| 的第二个参数 \verb|times| 有一个默认值 1，因此在调用时可以省略该参数，规范名称是“缺省”参数值。
+
+而在函数声明和定义分离的情况下，默认参数值只能在函数声明中指定，而不能在函数定义中指定。例如：
+\begin{minted}{cpp}
+void greet(const std::string& name = "Guest"); // 函数声明
+void greet(const std::string& name) { // 函数定义
+    std::cout << "Hello, " << name << "!" << std::endl;
+}
+\end{minted}
+
+\paragraph{匿名函数（闭包）} 
+
+C++允许使用匿名函数（闭包），也称为lambda表达式。匿名函数是一种没有名称的函数，可以在需要函数对象的地方直接定义和使用；它们可以定义在其他函数里面，可以捕获外部变量，也可以作为参数传递给其他函数。
+
+\begin{minted}{cpp}
+auto add = [](int a, int b) { return a + b; }; // 定义一个匿名函数并赋值给变量add
+int result = add(3, 4); // 调用匿名函数，result的值为7
+\end{minted}
+可以看出，匿名函数分三部分：
+\begin{itemize}
+    \item 捕获列表（capture list）：用方括号 \verb|[]| 包围，指定匿名函数可以访问的外部变量。如果写成 \verb|[=]|，表示按值捕获所有外部变量；如果写成 \verb|[&]|，表示按引用捕获所有外部变量；也可以指定具体的变量，例如 \verb|[x, &y]| 表示按值捕获 \verb|x|，按引用捕获 \verb|y|。
+    \item 参数列表（parameter list）：用圆括号 \verb|()| 包围，指定匿名函数的参数。这里可以当成普通函数的参数列表来使用。
+    \item 函数体（function body）：用花括号 \verb|{}| 包围，包含匿名函数的具体实现。
+\end{itemize}
+
+匿名函数的类型是特殊的。每一个匿名函数都是一个独一无二、不可命名、由编译器生成的闭包。这个闭包会重载括号 \verb|()| 运算符，使得闭包对象可以像普通函数一样被调用。因此，这是一个确定的类型，但这个类型不能命名、不能写出。匿名函数不是函数指针（但不捕获外部变量的匿名函数可以转换为函数指针），也不是函数引用。
+
+例如下列代码：
+\begin{minted}{cpp}
+auto lambda = [](int x) { return x * x; };
+\end{minted}
+其类型实际上类似于：
+\begin{minted}{cpp}
+class __lambda_unique_name {
+public:
+    int operator()(int x) const { return x * x; }
+};
+\end{minted}
+但是你永远不能直接写出这个类名，它是不可以访问的。
+
+匿名函数在STL中有极为重要的作用，尤其是在算法中作为回调函数使用。它们可以让代码更简洁、更灵活，避免了定义额外的函数或类。
+
+有时候，我们需要存储或传递匿名函数对象，这时候可以使用 \verb|std::function| 来包装匿名函数。 \verb|std::function| 是一个通用的函数封装器，可以存储任何可调用对象，包括普通函数、成员函数、函数指针和匿名函数。例如：
+\begin{minted}{cpp}
+#include <functional>
+std::function<int(int, int)> func = [](int a, int b) { return a + b; }; // 将匿名函数赋值给std::function对象
+int result = func(3, 4); // 调用匿名函数，result的值为7
+\end{minted}
+但这个东西不是匿名函数本身的类型，它是一个通用的函数封装器，因此有类型擦除的开销，并且会有额外的内存分配和释放开销，所以请谨慎使用之。
+
+实际上如果Lambda表达式不捕获任何外部变量，我们完全可以直接转成函数指针传递。
+\begin{minted}{cpp}
+    using FuncPtr = int(*)(int);  // 定义一个函数指针类型
+    FuncPtr func = [](int x) { return x * x; };  // 将Lambda表达式转换为函数指针
+    cout << "Result: " << func(5) << endl;  // 调用函数指针并输出结果
+\end{minted}
+
+\section{智能指针和引用}
+
+在C中，指针是最重要的概念，它允许我们直接操作内存。但C的指针存在许多弊病，例如悬垂指针、内存泄漏等。为了解决这些问题，C++引入了智能指针和引用的概念。智能指针旨在解决内存管理问题，而引用则提供了更安全、简洁的手段来操作和传递对象。
+
+\subsection{RAII与所有权}
+
+资源获取即初始化（RAII）是C++的核心理念之一，后面还有一句“资源释放即销毁”。它的基本思想是：将资源的获取和释放绑定到对象的生命周期上。也就是说，当一个对象被创建时，它要自动获取所需的资源；当对象被销毁时，它要自动释放这些资源。这种机制可以有效地管理资源，避免内存泄漏和悬垂指针等问题。
+
+在C语言中，实际就已经有了RAII的影子。我们在堆上 \verb|malloc| 一块内存，并往里面填数，就是“资源获取即初始化”了；用完把这些内存 \verb|free| 掉，就是“资源释放即销毁”了。C++的RAII就是把这个思想推广到所有的资源管理上，包括内存、文件句柄、网络连接等。
+
+为了更好的RAII，我们引入“所有权”的概念。生活中，某人对某物拥有所有权，意味着他有权使用它，并且有责任在不再需要时妥善处理它。在C++中也是这个意思：某函数或类对其中的局部变量、成员属性等都有所有权，它们有权使用这些资源，并有责任在它们不再需要时释放这些资源。RAII和所有权的结合，使得C++程序在资源管理上更加安全和高效。
+
+\subsection{new 和 delete}
+
+\verb|new| 和 \verb|delete| 是C++中用于动态内存分配和释放的关键字。它们是对C语言中 \verb|malloc| 和 \verb|free| 的封装，提供了更安全、更灵活的内存管理方式。前者用于在堆上分配内存，并调用对象的构造函数；后者用于释放内存，并调用对象的析构函数。
+
+比如说
+\begin{minted}{cpp}
+int* p = new int(42); // 在堆上分配一个整数，并初始化为42
+delete p; // 释放内存，调用析构函数（如果有的话）
+auto* arr = new std::vector<int>(10, 0); // 在堆上分配一个包含10个整数的动态数组，并初始化为0
+delete arr; // 释放内存，调用析构函数
+int* arr2 = new int[5]{1, 2, 3, 4, 5}; // 在堆上分配一个包含5个整数的动态数组，并初始化为1,2,3,4,5
+delete[] arr2; // 释放动态数组内存，调用析构函数（如果有的话）
+\end{minted}
+它们是C++中手动管理内存的基础。
+
+\subsection{智能指针}
+
+手动 \verb|new|、\verb|delete| 固然灵活，但如果有时候这两个东西没有配对，那就会引发错误了。C++的智能指针就是为了解决这个问题而设计的，它们可以自动管理内存，确保资源在不再使用时被正确释放，从而避免内存泄漏和悬垂指针等问题。
+
+比如说，如果我要写一个链表，在C语言中会这么写：
+\begin{minted}{c}
+struct Node {
+    int data;
+    struct Node* next;
+};
+
+struct List {
+    struct Node* head;
+};
+
+int main(){
+    struct List* list = (struct List*)malloc(sizeof(struct List));
+    list->head = (struct Node*)malloc(sizeof(struct Node));
+    list->head->data = 1;
+    list->head->next = (struct Node*)malloc(sizeof(struct Node));
+    list->head->next->data = 2;
+    list->head->next->next = NULL;
+
+    // 释放链表
+    free(list->head->next);
+    free(list->head);
+    free(list);
+}
+
+\end{minted}
+我们发现，使用这个链表完毕后，必须严格按照倒序依次把内存 \verb|free| 掉，否则就会造成内存泄漏。这个过程非常容易出错，尤其是在链表节点较多时，这个过程就会非常的繁琐。
+
+观察上述链表的节点结构体。我们发现，后一个节点的生命周期依赖于前一个节点的生命周期。也就是说，当我们释放前一个节点时，后一个节点也应该被释放。在这种情况下，使用智能指针就是合理的。
+
+智能指针有三类：
+\begin{itemize}
+    \item \mintinline{cpp}{std::unique_ptr}：独占所有权的指针。当该指针指向的对象被销毁时，智能指针会自动释放内存。它不允许多个智能指针同时拥有同一个对象的所有权。它的“\verb|new|”是 \mintinline{cpp}{std::make_unique}。
+    \item \mintinline{cpp}{std::shared_ptr}：共享所有权的指针。当最后一个拥有该对象的智能指针被销毁时，智能指针会自动释放内存。它的“\verb|new|”是 \mintinline{cpp}{std::make_shared}。
+    \item \mintinline{cpp}{std::weak_ptr}：不具有所有权的指针。它用于观察由 \mintinline{cpp}{std::shared_ptr} 管理的对象是否存活，不会影响对象的生命周期。它由\textbf{不安全的观察者}使用：被观察对象可能会比观察者先销毁。因此，它只允许和 \mintinline{cpp}{std::shared_ptr} 配合使用，避免循环引用问题。注意：没有 \mintinline{cpp}{std::make_weak}。
+\end{itemize}
+
+\paragraph{独占所有权的智能指针}
+
+独占所有权的智能指针很简单。当自己被销毁时，它会自动释放自己所拥有的资源，即销毁自己指向的对象。它不允许多个智能指针同时拥有同一个对象的所有权，因此它的使用场景非常明确：当一个对象的生命周期完全依赖于另一个对象时，使用独占所有权的智能指针是最合适的选择。实际上99\%的情况下都是这个，我们大力提倡使用这个。
+
+单链表可以改写成：
+\begin{minted}{cpp}
+#include <memory>
+struct Node {
+    int data;
+    std::unique_ptr<Node> next; // 使用std::unique_ptr管理下一个节点
+};
+
+struct List {
+    std::unique_ptr<Node> head; // 使用std::unique_ptr管理链表头节点
+};
+
+int main(){
+    auto list = std::make_unique<List>(); // 创建链表对象
+    list->head = std::make_unique<Node>(); // 创建第一个节点
+    list->head->data = 1;
+    list->head->next = std::make_unique<Node>(); // 创建第二个节点
+    list->head->next->data = 2;
+    list->head->next->next = nullptr;
+
+    // 不需要手动释放内存，智能指针会自动管理资源
+}
+\end{minted}
+
+在离开 \verb|main| 后，\verb|list| 因为是一个临时对象（局部变量），会被销毁。在销毁前，发现自己持有一个 \verb|std::unique_ptr<Node>| 类型的 \verb|head| 成员变量，它会自动去销毁 \verb|head| 指向的对象。然后 \verb|head| 的析构函数会去销毁它的 \verb|next| 成员变量，依次类推，直到链表最末端。链表最末端发现自己持有的智能指针是空的，说明自己不持有资源了，于是销毁自身；前一个节点的智能指针析构函数发现自己持有的智能指针已经被销毁了，于是销毁自身……依次类推，直到链表头节点被销毁。最后，\verb|list| 的析构函数发现自己持有的 \verb|head| 成员变量已经被销毁了，于是销毁自身。整个链表就被正确地释放了。
+
+\begin{remark}{}
+短链这么写肯定没什么问题。
+
+但是，如果链表太长，这些递归的销毁过程会导致栈溢出。因此要在析构函数（即销毁List的函数）中手动迭代断链，防止递归析构导致栈溢出。可以这么写：
+\begin{minted}{cpp}
+struct List {
+    std::unique_ptr<Node> head; // 使用std::unique_ptr管理链表头
+    ~List() { // 析构函数。具体见OOP章节
+        // 在这里实现迭代断链，防止递归析构导致栈溢出
+        while (head) { // 迭代断链，防止递归析构导致栈溢出
+            head = std::move(head->next); // 夺走下一个节点的所有权，同时销毁当前节点
+        }
+    }
+};
+\end{minted}
+更常见的实现（标准库）会直接使用自定义分配器和手动管理原始指针（当然避免爆栈不是唯一原因，还有需要支持转移拼接等操作，而\verb|unique_ptr|有些死板，会阻碍这种侵入数据结构的灵活操作）。但已经是手搓了，写成这样就行了。
+\end{remark}
+
+\paragraph{共享所有权的智能指针、弱指针和裸指针}
+
+共享所有权的智能指针允许多个智能指针共享同一个对象的所有权。当最后一个拥有该对象的智能指针被销毁时，智能指针会自动释放内存。共享所有权的智能指针使用引用计数来跟踪有多少个智能指针指向同一个对象：当引用计数归零时，该对象被销毁。它的控制过程要比独占所有权的智能指针复杂得多，开销较大，要谨慎使用。如果我们疑惑到底要不要用，那八成就是不要用。
+
+比如双链表：
+\begin{minted}{cpp}
+struct Node {
+    int data;
+    std::shared_ptr<Node> next; 
+    std::shared_ptr<Node> prev; 
+};
+\end{minted}
+这个思路是显然的，但会有一个问题：考虑一个节点以及它的后继。当整个链表被释放时，这个节点在观察它的后继的引用计数（恒为1），而后继在观察它的前驱的引用计数（恒为1），这就导致了循环引用问题：它和后继永远不会被正确销毁。
+
+所以，为了打破引用，必须使用弱指针（\verb|std::weak_ptr|）来观察前驱节点，而不是共享所有权的智能指针。弱指针不会增加引用计数，因此不会导致循环引用问题。例如这个双链表：（\textcolor{red}{\bfseries 仅供说明问题，但这个实现非常差，实际不要这么写！}）：
+\begin{minted}{cpp}
+#include <memory>
+struct Node {
+    int data;
+    std::shared_ptr<Node> next; // 使用std::shared_ptr管理下一个节点
+    std::weak_ptr<Node> prev; // 使用std::weak_ptr管理上一个节点，避免循环引用
+};
+
+struct List {
+    std::shared_ptr<Node> head; // 使用std::shared_ptr管理链表头节点
+};
+
+int main(){
+    auto list = std::make_shared<List>(); // 创建链表对象
+    list->head = std::make_shared<Node>(); // 创建第一个节点
+    list->head->data = 1;
+    list->head->next = std::make_shared<Node>(); // 创建第二个节点
+    list->head->next->data = 2;
+    list->head->next->prev = list->head; // 设置第二个节点的上一个节点为第一个节点
+
+    // 不需要手动释放内存，智能指针会自动管理资源
+}
+\end{minted}
+
+\verb|weak_ptr| 的最大问题是太慢，它虽然不维护引用计数，但通过它来访问对象时，要先 \verb|lock()| 一下，获取一个 \verb|shared_ptr|，然后才能访问对象。这个过程涉及到原子操作和锁的开销，因此性能非常低，比裸指针慢很多。更何况，在上述问题中，我们引入 \verb|weak_ptr| 的目的只是为了打破循环引用，但那是我们错误的选择了 \verb|shared_ptr|（本来就不应该使用 \verb|shared_ptr|！），属于是“为了解决自己制造的问题而制造问题”。
+
+所以说，\verb|shared_ptr| 和 \verb|weak_ptr| 的使用场景非常有限，除非你真的需要共享所有权，否则请尽量使用 \verb|unique_ptr|。这也说明了一件事：就算是C++有了智能指针，裸指针依然有着一席之地：虽然它不再管理内存了，但它可以由\textbf{安全的观察者}所持有，即被观察对象的生命周期一定不短于观察者的生命周期，这是C++社区的共识。裸指针的使用场景非常明确：当你需要一个不拥有资源的指针时，使用裸指针是最合适的选择。
+
+因此，真正的双链表应该是：
+\begin{minted}{cpp}
+struct Node {
+    int data;
+    std::unique_ptr<Node> next; // 使用std::unique_ptr管理后继
+    Node* prev; // 使用裸指针观察前驱
+};
+struct List {
+    std::unique_ptr<Node> head; // 使用std::unique_ptr管理链表头节点
+};
+int main(){
+    auto list = std::make_unique<List>(); // 创建链表对象
+    list->head = std::make_unique<Node>(); // 创建第一个节点
+    list->head->data = 1;
+    list->head->next = std::make_unique<Node>(); // 创建第二个节点
+    list->head->next->data = 2;
+    list->head->next->prev = list->head.get(); // 设置第二个节点
+    // 不需要手动释放内存，智能指针会自动管理资源
+}
+\end{minted}
+这个和刚刚的单链表遇到的问题是一致的，长链表要手动断链避免爆栈。这是在C++中唯一正确的手搓双链表的方法。
+
+\subsection{引用}
+
+引用是有别于指针的另一种观察数据的方法。一开始加入引用的目的是为了防止使用指针，但后来发现实际上引用并没有解决问题，但也带来了新的优势，所以依然被保留了下来。
+
+\paragraph{基本引用} 引用是一个变量的别名，它必须在定义时被初始化，并且一旦绑定到一个变量，就不能再绑定到其他变量。引用的语法是在类型后面加上 \verb|&| 符号。例如：
+\begin{minted}{cpp}
+int a = 10;
+int& ref = a; // 定义一个引用ref，绑定到变量a
+ref = 20; // 通过引用修改a的值
+std::cout << a << std::endl; // 输出20
+\end{minted}
+
+引用的主要特点是：
+\begin{itemize}
+    \item 引用必须在定义时初始化；
+    \item 引用一旦绑定到一个变量，就不能再绑定到其他变量；
+    \item 引用本身没有独立的内存地址，它只是一个别名，因此不能存储（不能 \mintinline{cpp}{std::vector<int&>}，也不能 \mintinline{cpp}{struct A { int& ref; }; }）；
+    \item 引用只观察对象，不管理对象的生命周期；
+    \item 引用不能为空引用，必须绑定到一个有效的变量。这一点是和指针最大的区别：指针可以为空指针，而引用必须引用一个有效的对象。
+\end{itemize}
+
+引用和指针一样，\verb|T&|和\verb|T*|都是一个严格的类型，不能随意转换。
+
+引用可以为常引用 \verb|const T&|，也可以为非常引用 \verb|T&|。常引用不能修改所引用的对象，而非常引用可以修改所引用的对象。
+
+\paragraph{传引用} 这是引用的最常见使用方法之一：
+\begin{minted}{cpp}
+void swap(int& a, int& b) { // 传引用
+    int temp = a;
+    a = b;
+    b = temp;
+}
+int main() {
+    int x = 5, y = 10;
+    swap(x, y); // 传引用，交换x和y的值
+    std::cout << "x: " << x << ", y: " << y << std::endl; // 输出 x: 10, y: 5
+    return 0;
+}
+\end{minted}
+
+在不需要修改传入的数值、且不愿意拷贝原始数据的情况下，传常引用是最好的选择：
+\begin{minted}{cpp}
+void print(const std::string& str) { // 传常引用
+    std::cout << str << std::endl;
+}
+\end{minted}
+
+在函数传参上，传引用已经基本取代了传指针（除非这个指针有别用）。
+
+\paragraph{右值引用} 
+
+右值引用传递的是“右值”，也就是临时对象或字面量，这和左值引用（普通的引用）不同。
+\begin{minted}{cpp}
+int x = 1;
+int& lref = x; // 左值引用，绑定到变量x
+int&& rref = 2; // 右值引用，绑定到字面量，可以
+int&& rref2 = x + 1; // 右值引用，绑定到临时对象，可以
+int&& rref3 = lref; // 错误，不能绑定到左值
+int&& rref4 = x; // 错误，不能绑定到左值
+int&& rref5 = std::move(x); // 可以，std::move将左值转换为右值
+\end{minted}
+
+那么这玩意有啥用呢，绑定一个行将就木的临时变量？
+
+它的第一个用途是搬运。举个例子：
+\begin{minted}{cpp}
+std::string str1 = "Hello, ";
+std::string str2 = str1 + "World!";
+\end{minted}
+注意到右值 \verb|str1 + "World!"| 是一个临时对象，它的生命周期只在这一行内。但如果想把这玩意拷贝进 \verb|str2|，就会调用 \verb|std::string| 的拷贝构造函数，进行一次深拷贝，效率不高。我们可以使用右值引用来实现“搬运”操作，从而避免不必要的拷贝：
+\begin{minted}{cpp}
+std::string(std::string&& other) noexcept 
+    : data(other.data) { // 直接抢夺资源
+    other.data = nullptr; // 抢完后将原来的指针置空避免重复释放
+}
+\end{minted}
+正因为右值引用绑定的临时对象马上要销毁，所以我们可以放心的把资源移走，而不必担心原来的对象会被再次使用。这个过程就是所谓的“移动语义”，它是C++11引入的一种优化手段，可以显著提高程序的性能。
+
+第二个用途是完美转发。完美转发是指在函数模板中，将参数原封不动地传递给另一个函数，而不改变其值类别（左值或右值）。这在实现通用的函数模板时非常有用。例如：
+\begin{minted}{cpp}
+template<typename T>
+void wrapper(T&& arg) { // T&& 是一个万能引用，可以绑定到左值或右值
+    process(std::forward<T>(arg)); // 完美转发，将arg原封不动地传递给process函数
+}
+\end{minted}
+
+独占所有权的智能指针只能移动不能拷贝的特性就是右值引用的应用：
+\begin{minted}{cpp}
+std::unique_ptr<int> p1 = std::make_unique<int>(42); // 创建一个独占所有权的智能指针
+std::unique_ptr<int> p2 = std::move(p1); // 使用std::move将p1的所有权转移给p2
+// p1现在为空，p2拥有原来的资源
+std::unique_ptr<int> p3 = p1; // 错误，不能拷贝
+\end{minted}
+
+\section{异常及其处理}
+
+在C语言中，我们可能会遇到一些不愿意发生的事情，例如：
+\begin{minted}{c}
+int foo(int* ptr) {
+    if (ptr == NULL) {
+        // 错误处理
+        return -1;
+    }
+    // 正常处理
+    return 0;
+}
+\end{minted}
+这个函数中的 \verb|-1| 和 \verb|0| 并不代表一个真切的“计算结果”，而是一个状态码。此时，调用者必须检查返回值，以确定函数是否成功执行。这种方式有几个问题：
+\begin{itemize}
+    \item 它混淆了函数的返回值和错误状态码，使得代码的可读性和可维护性降低；
+    \item 它要求调用者必须检查返回值，否则可能会忽略错误，导致程序在不知情的情况下继续执行，从而引发更严重的问题；
+    \item 它无法提供丰富的错误信息，例如错误的类型、位置和上下文等，这使得调试和排查问题变得困难。
+\end{itemize}
+
+我们希望函数的返回值就是“处理结果”，如果没有合适的结果就不返回值；如果发生了错误，能从另一条“旁路”传递错误消息给调用者，而不会影响正确的返回值。在C++中，这个“旁路”就是异常处理机制。C++的异常处理机制允许我们在函数中抛出异常，并在调用者中捕获异常，从而实现错误的传递和处理。
+
+\begin{remark}{}
+    C++的异常在设计上是为了处理“异常情况”，而不是用于控制程序的正常流程。也就是说，异常应该用于处理那些不常发生的错误情况，而不是用于替代正常的条件判断或循环控制。滥用异常可能会导致代码难以理解和维护，并且可能会引入性能开销。
+
+    此外，由于异常不被处理即 \verb|std::terminate|，因此在设计函数时，应该明确哪些函数可能会抛出异常，并在文档中进行说明；调用可能抛出异常的任何函数时，必须负责任的处理异常。在超大型项目中，可能由于少数人的疏忽、没有处理被上游抛出的异常，而导致服务崩溃，是生产环境的灾难。因此，部分生产环境会禁用异常。实际是否使用异常，应当遵从团队的代码规范。
+\end{remark}
+
+\subsection{异常的抛出}
+
+异常，\mintinline{cpp}{std::exception}，是C++中用于表示错误或异常情况的对象。它们可以在程序运行时被抛出，并在调用者中被捕获，从而实现错误的传递和处理。异常的抛出和捕获机制使得程序能够在发生错误时，优雅地退出当前的执行路径，并将控制权转移到适当的错误处理代码中。
+
+异常被定义在 \verb|<exception>| 头文件中，它是一个类层次结构的根类，所有标准异常类都继承自 \verb|std::exception|。常见的标准异常类包括：
+\begin{itemize}
+    \item \verb|std::runtime_error|：表示运行时错误，例如除零错误、数组越界等；
+    \item \verb|std::logic_error|：表示逻辑错误，例如违反程序逻辑的操作；
+    \item \verb|std::invalid_argument|：表示无效的参数，例如传入了不合法的参数值；
+    \item \verb|std::out_of_range|：表示超出范围的错误，例如访问数组时索引越界；
+    \item \verb|std::bad_alloc|：表示内存分配失败的错误，例如在堆上分配内存时失败。
+\end{itemize}
+这些异常在标准库中多有采用，例如 \verb|std::vector| 在访问越界时会抛出 \verb|std::out_of_range| 异常，而不是强行访问导致的段错误，增加了程序的可靠性。
+
+具体的写法类似于：
+\begin{minted}{cpp}
+void foo(int* ptr) {
+    if (ptr == nullptr) {
+        throw std::invalid_argument("ptr cannot be null"); // 抛出异常
+    }
+    // 正常处理
+}
+\end{minted}
+这种函数是没有返回值的，它要么正常执行，要么抛出异常。当抛出异常时，函数的执行会立即中止，并将异常对象传递给调用者。调用者可以选择捕获异常，也可以选择不捕获异常，让异常继续向上传递。
+
+如果一个函数“肯定不会出错”（这包括两种情况：函数内部不可能抛出异常，或者函数内部可能抛出异常但调用者的输入使它实际上不可能抛出异常），那么它可以声明为 \verb|noexcept|，表示它不会抛出异常。这有助于编译器进行优化，并提高程序的性能。例如：
+\begin{minted}{cpp}
+void bar() noexcept {
+    // 这个函数不会抛出异常，其中不能有任何 throw，也不应该有任何可能抛出异常的操作
+}
+void baz(int* n) noexcept {
+    // 直接正常处理，看似可能会引发错误
+}
+// 但实际上
+void foo(int* ptr) noexcept {
+    if (ptr == nullptr) {
+        // 这里不会抛出异常，而是直接处理错误
+        return;
+    }
+    baz(ptr); // 调用baz函数，因为已经检查过了，所以这里是安全的
+}
+\end{minted}
+
+\subsection{抛出异常的时机与注意事项}
+
+虽然异常解决了错误处理的问题，但因为它会中断程序的执行，所以可能会引发一些错误。最典型的错误是这类：
+\begin{minted}{cpp}
+void foo(int* ptr) {
+    new int[10]; // 分配内存
+    if (ptr == nullptr) {
+        throw std::invalid_argument("ptr cannot be null"); // 抛出异常
+    }
+    // 正常处理
+    delete[] ptr; // 释放内存
+}
+\end{minted}
+在这个例子中，如果 \verb|ptr| 为 \verb|nullptr|，那么 \verb|throw| 会抛出异常，导致函数立即中止执行，而 \verb|delete| 就不会正确释放 \verb|new| 分配的内存，从而引发内存泄漏问题。
+
+为此，必须保证：
+\begin{itemize}
+    \item 在抛出异常之前，尽量不分配资源：
+    \item 如果确需分配资源，尽量使用RAII的方式管理资源（如智能指针等）；
+    \item 如果确需手动分配资源，在抛出异常之前，必须释放所有资源，包括动态分配的内存、文件句柄、网络连接等；
+    \item 对于核心任务就是“分配资源”的函数，必须不能抛出异常（如类的构造函数等），并利用其他模式来查错（如工厂模式）。
+\end{itemize}
+所以说，上述的 \verb|foo| 函数有三种改写方法：
+\begin{minted}{cpp}
+void foo1(int* ptr){
+    if (ptr == nullptr) {
+        throw std::invalid_argument("ptr cannot be null"); // 抛出异常
+    }
+    new int[10]; // 分配内存
+    // 正常处理
+    delete[] ptr; // 释放内存
+}
+
+void foo2(int* ptr){
+    std::unique_ptr<int[]> arr(new int[10]); // 使用智能指针管理内存
+    if (ptr == nullptr) {
+        throw std::invalid_argument("ptr cannot be null"); // 抛出异常
+    }
+    // 正常处理
+    // 智能指针会自动释放内存
+}
+
+void foo3(int* ptr){
+    int* arr = new int[10]; // 分配内存
+    if (ptr == nullptr) {
+        delete[] arr; // 释放内存，防止内存泄漏
+        throw std::invalid_argument("ptr cannot be null"); // 抛出异常
+    }
+    
+    // 正常处理
+    delete[] arr; // 释放内存
+}
+\end{minted}
+
+\subsection{异常的捕获和处理}
+
+如果异常不被捕获，它就会掐断程序的执行，并沿着调用栈向上传递，直到找到一个合适的异常处理程序。如果没有找到合适的异常处理程序，程序将会终止，并调用 \verb|std::terminate()| 函数。为了避免这种情况，我们需要在调用可能抛出异常的函数时，使用 \verb|try-catch| 块来捕获和处理异常。它会在所有的 \verb|catch| 块中寻找一个匹配的异常类型，如果有多个匹配的异常类型，编译器会选择最具体的那个类型进行捕获。
+
+\begin{minted}{cpp}
+int main() {
+    try {
+        foo(nullptr); // 调用可能抛出异常的函数
+    } catch (const std::invalid_argument& e) { // 捕获特定类型的异常
+        std::cerr << "Caught exception: " << e.what() << std::endl; // 输出异常信息
+    } catch (const std::exception& e) { // 捕获所有标准异常
+        std::cerr << "Caught exception: " << e.what() << std::endl; // 输出异常信息
+    } catch (...) { // 捕获所有其他类型的异常
+        std::cerr << "Caught unknown exception" << std::endl;
+    }
+    return 0;
+}
+\end{minted}
+在异常被捕获后，程序一般会进行适当的错误处理，即 \verb|catch| 块中的代码。处理完异常后，程序会继续执行 \verb|try-catch| 块之后的代码，而不会中止整个程序的执行。
+
+不要将 \verb|catch| 块置空，这样会导致异常被吞掉，程序继续执行，可能会引发更严重的问题。如果你不知道怎么处理这个异常，至少应该记录异常信息，或者将这个异常原样向上传递。错误的执行比程序崩溃更可怕。

@@ -1,0 +1,779 @@
+\chapter{C++的多线程编程}
+
+我们刚学编程的时候，代码大多数时候是一个线程跑到尾。那对于一些大型计算任务，比如大型游戏，一个线程从头跑到尾，效率太低。现代CPU动辄几十个核，难道一核有难、八核围观？这显然是不合适的。还有另一些情形：假如现在有两个任务，一个是要从网上下载某个超大型资源，另一个是要处理这些资源。朴素的想法是先把所有东西全都拉下来然后再一起处理，但这样就会造成资源的浪费：下载的时候CPU在睡觉，不能把这段时间给利用起来。
+
+\section{前置知识：程序执行原理}
+
+在深入学习多线程编程之前，我们需要了解一些基本的程序执行原理：操作系统是如何调度程序的，CPU是如何执行程序的。
+
+\subsection{进程}
+
+操作系统是一个资源管理器，它管理着计算机的各种资源，包括CPU、内存、磁盘、网络等。
+
+当一个程序执行起来的时候，操作系统会为它分配一个独立的内存空间，并为它创建一个\textbf{进程}，即“进行中的程序”。多数程序仅由一个进程构成，但也有一些程序会创建多个进程来完成不同的任务。每个进程都有自己的内存空间和资源，它们之间是相互隔离的。
+
+进程是操作系统调度资源的基本单位。当一个进程被创建时，操作系统会为该进程分配一个唯一的“进程标识符”（Process ID, PID），并为其分配内存空间和其他资源。进程中的代码会被加载到内存中，并开始执行。这个过程的资源开销是比较大的。由于不同进程的内存空间相互隔离，因此要让进程之间通信，必须经过系统调用，这个开销也是较大的。
+
+为了允许计算机执行多个线程，操作系统会进行时间片轮转调度。时间片是CPU分配给每个进程的时间段，操作系统会在不同进程之间切换，让它们轮流使用CPU。这样看起来就像是多个进程同时在运行，但实际上在任意时刻，CPU只会执行一个进程的指令。
+
+\subsection{线程}
+
+线程是CPU调度的基本单位。可以理解为一个单一的计算任务或执行路径。一个进程可以包含多个线程，这些线程共享进程的内存空间和资源。线程之间的切换开销比进程之间的切换开销小得多。这样，一个复杂的计算任务（进程）就可以被拆分成许多小的线程，并让它们同时运行在不同的CPU核心上，从而提升整体的计算效率。打个比方，进程是“项目组”，而线程则是“员工”；领取资源是以“项目组”的名义领取的，而具体的工作则是由“员工”来完成的。通过合理地分配任务，不同的员工同时进行不同的工作，就能提高整个项目组的工作效率。
+
+\section{基本多线程编程}
+
+\subsection{从异步说开去}
+
+C++中的异步本质上也是多线程编程的一种形式，即 \verb|std::async|。异步是C++中最方便的启动多线程任务的一种方式。它可以让你在后台执行一个函数，并在需要的时候获取其结果，而不需要显式管理线程的创建和销毁。
+
+\begin{minted}{cpp}
+#include <future>
+#include <thread>
+#include <chrono>
+#include <print>
+
+int compute(){
+    // 假装这是一个耗时的计算任务，比如两个大有序数组的归并
+    // 这里只是让这个线程睡 10 秒，模拟计算的耗时
+    std::println("Computing...");
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    return 42;
+}
+
+int main() {
+    // 异步的启动 compute() 函数，然后啥都不用管，结果在需要的时候再去获取
+    std::future<int> result = std::async(std::launch::async, compute);
+
+    // 该干嘛干嘛
+    std::println("Doing other things...");
+
+    // 别的干完了后回来获取结果
+    // 如果结果没计算完，这里会在这里等着
+    int value = result.get();
+    std::println("Result: {}", value);
+
+    return 0;
+}
+\end{minted}
+
+这就是最基本的多线程编程。在这个例子中，\verb|std::future| 指的是“未来的值”，它是一个占位符，表示某个值将在未来的某个时间点被计算出来。通过调用 \verb|get()| 方法，我们可以获取这个值。如果计算还没有完成，\verb|get()| 会阻塞当前线程，直到计算完成并返回结果。
+
+\mintinline{cpp}{std::async} 是一个函数模板，其签名类似于：
+\begin{minted}{cpp}
+template<class F, class... Args>
+std::future<std::invoke_result_t<F, Args...>> async(F&& f, Args&&... args);
+\end{minted}
+它接受一个可调用对象（函数、函数指针、lambda表达式等）和一组参数，并返回一个 \verb|std::future| 对象。这个对象可以用来获取异步计算的结果。而在这里的\verb|std::launch::async| 是一个枚举值，表示异步任务应该在新的线程中执行。相应的，\verb|std::launch::deferred| 表示异步任务应该在调用 \verb|get()| 时才执行，即延迟执行。
+
+\subsection{发生了什么？}
+
+让我们看看刚刚这个程序在做什么。
+
+用GDB来调试这个程序，得到的结果如下：
+\begin{minted}{text}
+Breakpoint 1, main () at test.cc:14
+14      int main()
+(gdb) n
+16              std::future<int> result = std::async(std::launch::async, compute);
+(gdb) n
+[New Thread 0x7ffff77ff6c0 (LWP 228816)]
+
+Thread 1 "test" hit Breakpoint 3, main () at test.cc:19
+19              std::println("Doing other things...");
+(gdb) n
+[Switching to Thread 0x7ffff77ff6c0 (LWP 228816)]
+
+Thread 2 "test" hit Breakpoint 2, compute () at test.cc:6
+6       int compute()
+(gdb) n
+Doing other things...
+[Switching to Thread 0x7ffff7f4b780 (LWP 228789)]
+
+Thread 1 "test" hit Breakpoint 4, main () at test.cc:23
+23              int value = result.get();
+(gdb) n
+Computing...
+[Thread 0x7ffff77ff6c0 (LWP 228816) exited]
+24              std::println("Result: {}", value);
+(gdb) n
+Result: 42
+26              return 0;
+\end{minted}
+
+根据GDB的调试信息，我们可以看到：当 \mintinline{cpp}{std::async(std::launch::async, compute)} 被调用时，C++会创建一个新的线程来执行 \verb|compute()| 函数。这个新线程会在后台运行，而主线程继续执行后续的代码。
+
+所以说，如果显式的声明一个线程，代码就会这样：
+\begin{minted}{cpp}
+#include <future>
+#include <thread>
+#include <chrono>
+#include <print>
+#include <promise>
+
+int compute(){
+    std::println("Computing...");
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    return 42;
+}
+
+int main(){
+    std::promise<int> promise;
+    std::future<int> result = promise.get_future();
+
+    // 显式创建一个线程来执行 compute() 函数
+    std::thread t([&promise](){
+        int value = compute();
+        promise.set_value(value);
+    });
+
+    std::println("Doing other things...");
+
+    int value = result.get();
+    std::println("Result: {}", value);
+
+    t.join(); // 等待线程结束
+
+    return 0;
+}
+\end{minted}
+可以看到，新的线程发起了一个“承诺”，承诺它将在未来的时间点提供一个数值。然后，在这个承诺下，线程自己去跑 \verb|compute()| 函数，计算完毕后将结果放入承诺中。主线程则继续执行其他任务，直到需要结果时才去获取它。
+
+\subsection{线程生命周期管理}
+
+在多线程编程中，线程的生命周期管理是一个重要的问题。整个进程结束时，所有子线程必须结束，随后主要线程才能结束，否则会引发未定义行为。
+
+通常，我们会使用 \verb|std::thread| 的 \verb|join()| 方法来等待线程完成，或者使用 \verb|detach()| 方法让线程独立运行。
+
+\verb|.join()| 方法的意思是：阻塞当前的线程，直到本线程完成执行。完成执行后，线程会被销毁，资源会被释放。使用 \verb|.join()| 可以确保线程在程序结束前完成任务，避免出现未定义行为。C++的RAII在这里也发挥了空间，C++20的 \verb|std::jthread| 会在该线程析构时自动调用 \verb|.join()| 方法，确保线程在程序结束前完成任务。此外，该类还支持 \verb|stop_token|，可以在需要时优雅地停止线程。用 \verb|std::jthread| 重写上述程序如下：
+\begin{minted}{cpp}
+#include <jthread>
+#include <future>
+#include <print>
+
+int compute(){
+    std::println("Computing...");
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    return 42;
+}
+
+int main(){
+    std::promise<int> promise;
+    std::future<int> result = promise.get_future();
+
+    // 使用 jthread 来管理线程生命周期
+    std::jthread t([&promise](){
+        int value = compute();
+        promise.set_value(value);
+    });
+
+    std::println("Doing other things...");
+
+    int value = result.get();
+    std::println("Result: {}", value);
+
+    // jthread 会在析构时自动 join
+    return 0;
+}
+\end{minted}
+
+\verb|.detach()| 方法的意思是：让线程脱离主线程的控制，独立运行。这样，主线程不会等待该线程完成，而是继续执行后续代码。使用 \verb|.detach()| 需要特别小心，因为如果主线程在子线程完成之前就结束了，那么子线程可能会在后台继续运行，导致资源泄露或程序崩溃。
+
+有了这个基础，我们就可以在C++中进行多线程编程了。
+
+\begin{example}{}{}
+
+请对一个一千万个整数的数组进行排序。
+
+\tcblower
+
+字越少，事越大。一千万个整数就已经不是一般单线程程序能应付得了的了。
+
+怎样去写这个多线程编程呢？我们想到了归并排序，它天生适合多线程编程。我们可以将数组分成两半，分别在两个线程中进行排序，然后再将两个有序数组合并成一个有序数组。这个过程可以递归地进行下去，直到每个线程只需要排序少数元素为止（1000个元素以内的排序可以直接使用 \verb|std::sort()| 来完成）。这样，我们就可以充分利用多核CPU的计算能力，大大提高排序的效率。代码实现大致如下：
+
+\begin{minted}{cpp}
+#include <algorithm>
+#include <future>
+#include <print>
+#include <random>
+#include <vector>
+
+std::vector<int> parallel_merge_sort(std::vector<int>& arr) {
+	if (arr.size() <= 1000) {
+		std::sort(arr.begin(), arr.end());
+		return arr;  // 返回原对象（RVO/移动）
+	}
+
+	size_t mid = arr.size() / 2;
+	std::vector<int> left(arr.begin(), arr.begin() + mid);
+	std::vector<int> right(arr.begin() + mid, arr.end());
+
+	// 左半异步，右半同步，防止线程过多
+	auto left_future = std::async(std::launch::async, parallel_merge_sort, std::ref(left));
+	auto right_sorted = parallel_merge_sort(right);   // 同步排序
+
+	auto left_sorted = left_future.get();  // 等待左半完成
+
+	std::vector<int> sorted(left_sorted.size() + right_sorted.size());
+	std::merge(left_sorted.begin(), left_sorted.end(),
+			   right_sorted.begin(), right_sorted.end(),
+			   sorted.begin());
+	return sorted;
+}
+
+int main() {
+	std::vector<int> arr(10000000); // 一千万个元素
+	std::ranges::iota(arr, 0);       // 填充数组
+	std::ranges::shuffle(arr, std::mt19937{std::random_device{}()}); // 打乱数组
+	std::println("Array is shuffled!");
+
+	std::vector<int> sorted_arr = parallel_merge_sort(arr);
+
+	// 检查一下
+	if (std::ranges::is_sorted(sorted_arr)) {
+		std::println("Array is sorted!");
+	} else {
+		std::println("Array is NOT sorted!");
+	}
+	return 0;
+}
+\end{minted}
+
+当然也可以投机取巧：
+\begin{minted}{cpp}
+#include <algorithm>
+#include <print>
+#include <vector>
+#include <execution>
+#include <random>
+
+int main() {
+    std::vector<int> arr(10000000); // 一千万个元素
+    std::ranges::iota(arr, 0);       // 填充数组
+    std::ranges::shuffle(arr, std::mt19937{std::random_device{}()}); // 打乱数组
+    std::println("Array is shuffled!");
+
+    // 使用并行执行策略进行排序，见上一章
+    std::sort(std::execution::par, arr.begin(), arr.end());
+
+    // 检查一下
+    if (std::ranges::is_sorted(arr)) {
+        std::println("Array is sorted!");
+    } else {
+        std::println("Array is NOT sorted!");
+    }
+    return 0;
+}
+\end{minted}
+这种写法确实是多线程。实际情形中这么写也不是不行。
+
+\end{example}
+
+上述写法（指手搓的多线程实现）在数组长度为一千万左右的时候表现尚且良好。但当数组长度到达一亿甚至更高的时候这个方法失效。理由是：线程太多，操作系统并不能很好的调度如此海量的线程，导致线程之间的切换开销过大；其次，虽然创建和销毁线程的开销远小于进程，但也不是没有开销，创建和销毁太多线程也会导致性能下降。最后，线程的数量过多会导致内存消耗过大，甚至可能导致系统崩溃。
+
+那么，怎么去解决这些问题呢？
+
+\section{线程池}
+
+既然创建线程的开销不小，那么我们为什么还要频繁创建、销毁线程呢？如果预先创造好一组线程，并让它们睡觉、等待任务的到来；当有任务时，便唤醒一些线程，让他们去干活，干完活继续睡觉，而不是被销毁；如果任务到来时，线程池中的线程都在干活，那么就让任务排队等待，等有线程空闲了再去干活。这样就可以大大减少线程的创建和销毁开销，还能控制线程的总数。而按照这个思路写出来的东西，就是\textbf{线程池}。
+
+\subsection{线程池的基本原理和实现}
+
+那么问题是：怎么给这群线程派任务？任务来了，谁去干活？怎么保证这个任务仅唤醒一个线程去干活？怎么保证唤醒多个线程时，这些线程不会抢着做同一件事？这些问题都需要我们去解决。
+
+在线程池的实现中，我们通常会让所有的线程都在 \verb|while(true)| 这个死循环中消极等待。任务被包装成一个个 \verb|std::function<void()>| 对象，放入一个任务队列中，并由主要线程通知一个线程起来干活。为了进一步保证仅有一个线程在干这个活（因为有时候线程确实可能在没有收到通知的时候被意外唤醒），我们要给这个任务队列加上锁，保证一次只有一个线程能访问之（即“获得锁”）；当其他进程获得锁时，队列中已经没有那个任务了，此时不会重复执行，而是继续睡觉。
+
+
+因此，一个简单而功能完整的固定大小线程池的实现大致如下：
+\begin{minted}{cpp}
+#include <vector>
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <functional>
+#include <atomic>
+#include <future>  
+#include <iostream>
+#include <stdexcept>
+
+class ThreadPool {
+    std::vector<std::thread> workers; // 工作线程们
+    std::queue<std::function<void()>> tasks; // 任务队列
+    std::mutex queue_mutex; // 任务队列的锁
+    std::condition_variable condition; // 条件变量，用于通知线程有新任务
+    std::atomic<bool> stop; // 停止标志，用于关闭线程池
+
+    void workerLoop() { // 睡觉循环
+        while (true) {
+            std::function<void()> task;
+            {
+                // 进块，获取“RAII”的锁
+                std::unique_lock<std::mutex> lock(queue_mutex);
+
+                // 等待条件变量，直到有任务或者线程池被停止
+                condition.wait(lock, [this] { return stop || !tasks.empty(); });
+                if (stop && tasks.empty())
+                    return; // 如果停止并且任务队列为空，退出线程
+                
+                // 获取任务
+                task = std::move(tasks.front());
+                tasks.pop();
+            } // 出块，自动释放锁
+            if (task) { task(); }
+        }
+    }
+
+public:
+    // 构造，启动这些线程，默认为 CPU 核心数
+    ThreadPool(size_t threads = std::thread::hardware_concurrency()) : stop(false) {
+        for (std::size_t i = 0; i < threads; ++i)
+            workers.emplace_back(&ThreadPool::workerLoop, this);
+    }
+
+    // 析构，停止线程池，此时要保证所有线程都退出
+    ~ThreadPool() {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex); // 给任务队列上锁，保证线程安全
+            stop = true; // 设置停止标志
+        }
+        // 通知所有线程，唤醒它们
+        condition.notify_all();
+        // 等待所有线程退出
+        for (std::thread &worker : workers)
+            if (worker.joinable())
+                worker.join();
+    }
+
+    // 禁止拷贝和赋值线程池
+    ThreadPool(const ThreadPool&) = delete;
+    ThreadPool& operator=(const ThreadPool&) = delete;
+
+    // 干活（void）
+    void enqueue(std::function<void()> task) {
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex); // 给任务队列上锁，保证线程安全
+            if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
+            tasks.emplace(std::move(task)); // 将任务放入队列
+        }
+        condition.notify_one(); // 通知一个线程去干活
+    }
+
+    // 干活（有返回值），需要用完美转发和 std::packaged_task 来实现
+    template<class F, class... Args>
+    auto enqueue(F&& f, Args&&... args) -> std::future<std::invoke_result_t<F, Args...>> {
+        using return_type = std::invoke_result_t<F, Args...>; // 把返回值类型写的简单些
+
+        // 包装任务。这里必须用共享所有权的智能指针而不能用独占所有权的智能指针，因为任务队列中可能有多个线程在等待这个任务的完成。
+        auto task = std::make_shared<std::packaged_task<return_type()>>(
+            [f = std::forward<F>(f), ...args = std::forward<Args>(args)]() mutable { return f(args...); }
+        );
+        // 新写法是用匿名函数，基本已经取代了 std::bind。
+        
+        std::future<return_type> res = task->get_future(); // 获取任务的 future
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex); // 给任务队列上锁，保证线程安全
+            if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
+            tasks.emplace([task]() { (*task)(); }); // 将任务放入队列并包装成 void() 类型
+        }
+        condition.notify_one(); // 通知一个线程去干活
+        return res; // 返回 future
+    }
+};
+
+// 以下是测试 
+int addsleep(int a, int b) { // 一个睡1秒的加法，用于模拟耗时计算
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    return a + b;
+}
+
+int main(){
+    ThreadPool pool(4); // 创建一个线程池，大小为4
+    std::vector<std::future<int>> results; // 用于存储结果的 future
+
+    for (int i = 0; i < 8; ++i) {
+        results.emplace_back(pool.enqueue(addsleep, i, i)); // 提交任务到线程池
+    }
+
+    for (auto && result : results) {
+        std::cout << result.get() << ' '; // 获取结果并打印
+    }
+    std::cout << std::endl;
+
+    return 0;
+}
+\end{minted}
+如果正常，上述线程池的测试结果是：停1秒后，输出了0到14之间的所有偶数。
+
+\subsection{C++线程库的同步原语}
+
+现在我们将逐个解释新出现的这些东西：\verb|std::mutex|、\verb|std::condition_variable|、\verb|std::unique_lock|、\verb|std::atomic|、\verb|std::packaged_task|。
+
+以及上文没出现过的四个重要同步原语：\verb|std::shared_mutex|、\verb|std::barrier|、\verb|std::latch|、\verb|semaphore|。
+
+\paragraph{互斥量和锁} 互斥量（\verb|std::mutex|）是一个同步原语，顾名思义就是“互相排斥”的量，主要作用就是保证一个共享的数据（在上述线程池中是任务队列）在同一时刻只能被一个线程访问。
+
+可以这样理解：一个房间就是一个共享数据，一般不会把整个房间（整个共享数据）都设成锁，而是用一个门钥匙来控制谁能进去。一个线程要访问共享数据，就必须先获取这个钥匙（即获取互斥量的所有权），访问完毕后再把钥匙还回去（即释放互斥量的所有权）。因为钥匙只有一个，所以其他线程也想访问这个共享数据时就必须等待，直到钥匙被归还。
+
+普通的锁，类似 \verb|new-delete|，需要手动去获取和释放：
+\begin{minted}{cpp}
+std::mutex mtx; // 互斥量
+mtx.lock(); // 获取互斥量的所有权
+// 访问共享数据
+mtx.unlock(); // 释放互斥量的所有权
+\end{minted}
+但是如果在访问共享数据的过程中抛出了异常，那么 \verb|unlock()| 就不会被调用，从而导致互斥量的所有权无法释放，其他线程就无法获取互斥量的所有权，从而导致死锁。为了解决这个问题，C++提供了许多RAII的锁。
+
+最轻的RAII锁是 \verb|std::lock_guard|，它在构造时获取互斥量的所有权，在析构时释放互斥量的所有权。它的使用方式如下：
+\begin{minted}{cpp}
+std::mutex mtx; // 互斥量
+{
+    std::lock_guard<std::mutex> lock(mtx); // 获取互斥量
+    // 访问共享数据，此时被一直锁住，其他线程无法访问共享数据
+} // 离开作用域，lock被析构，释放互斥量
+\end{minted}
+\verb|std::lock_guard| 不能复制也不能移动，而且其生命周期和作用域高度绑定，不能手动解锁加锁，而且被设计为仅能用于互斥量。在语义明确且操作简单
+
+而更灵活的RAII锁是 \verb|std::unique_lock|，它可以手动加锁解锁，而且可以移动，但不能复制。它的使用方式如下：
+\begin{minted}{cpp}
+std::mutex mtx; // 互斥量
+{
+    std::unique_lock<std::mutex> lock(mtx); // 获取互斥量
+    // 访问共享数据，此时其他线程无法访问共享数据
+    lock.unlock(); // 手动解锁
+    // 纯计算，不访问共享数据，此时其他线程可以访问共享数据
+    lock.lock(); // 手动上锁
+    // 访问共享数据，此时其他线程无法访问共享数据
+} // 离开作用域，lock被析构，释放互斥量
+\end{minted}
+它允许手动解锁加锁、延迟加锁 \verb|std::defer_lock|、尝试加锁 \verb|.try_lock| 等操作。另外，要锁条件变量的话，必须用它。
+
+\paragraph{共享互斥量和读写锁} 共享互斥量（\verb|std::shared_mutex|）是一个同步原语，它允许多个线程同时读取共享数据，但在写入共享数据时，必须保证没有其他线程在读取或写入。它的使用方式如下：
+\begin{minted}{cpp}
+std::shared_mutex smtx; // 共享互斥量
+// 线程A（读线程）
+{
+    std::shared_lock<std::shared_mutex> lock(smtx); // 获取共享互斥量的共享所有权
+    // 读取共享数据，此时其他线程也可以读取共享数据，但不能写入共享数据
+} // 离开作用域，lock被析构，释放共享互斥量的共享所有权
+// 线程B（写线程）
+{
+    std::unique_lock<std::shared_mutex> lock(smtx); // 获取共享互斥量的独占所有权
+    // 写入共享数据，此时其他线程不能读取或写入共享数据
+} // 离开作用域，lock被析构，释放共享互斥量的独占所有权
+\end{minted}
+共享互斥量的使用场景是读多写少的情况，比如缓存、配置文件等。它可以提高并发性能，但也可能导致写线程饥饿（即写线程一直无法获取独占所有权）。
+
+一般情况下，还是建议使用普通的互斥量和锁，因为它们的语义更简单，容易理解和使用。
+
+\paragraph{条件变量} 条件变量（\verb|std::condition_variable|）是一个同步原语，它允许线程在某个条件不满足时进入睡眠状态，避免空转CPU；当条件满足时，其他线程可以通知它们醒来继续执行。
+
+条件变量有三个主要的用法：睡觉、唤醒一个线程、唤醒所有线程。条件变量的使用方式如下：
+\begin{minted}{cpp}
+std::condition_variable cv; // 条件变量
+std::mutex mtx; // 互斥量
+// 线程A
+{
+    std::unique_lock<std::mutex> lock(mtx); // 获取互斥量
+    cv.wait(lock, []{ return condition; }); // 如果条件不满足，进入睡眠状态，直到被唤醒
+    // 条件满足，继续执行
+} // 离开作用域，lock被析构，释放互斥量
+// 主要线程
+{
+    std::unique_lock<std::mutex> lock(mtx); // 获取互斥量
+    // 修改条件
+} // 离开作用域，lock被析构，释放互斥量
+cv.notify_one(); // 唤醒一个线程
+// 或者 cv.notify_all(); // 唤醒所有线程
+\end{minted}
+\textbf{重要}：用条件变量让线程睡觉时，必须用带谓词的 \verb|.wait|，或把 \verb|.wait| 放在 \verb|while(!condition)| 循环中。原因有二：
+\begin{itemize}
+    \item 虚假唤醒：操作系统可能无故唤醒线程，这不是bug，但可能导致错误；
+    \item 多唤醒竞争：可能唤醒多个线程或错误的线程，也有可能在停止场景下被唤醒但没有任务可做。
+\end{itemize}
+
+另外，能唤醒一个线程就尽量不要唤醒所有线程，因为唤醒所有线程会引发“惊群效应”，虽然通过循环检查和队列 \verb|pop| 能保证线程安全（即只有一个线程能拿到任务），但其他线程被唤醒后又要进入睡眠状态，这样会造成CPU资源的浪费。
+
+最后，最佳的实践是先解锁再通知，因为如果先通知再解锁，可能会导致被唤醒的线程立即争抢锁（但此时锁在主线程手里），从而导致被唤醒的线程被阻塞，影响程序性能。
+
+\paragraph{原子变量} 原子变量（\verb|std::atomic|）是一个同步原语，它允许多个线程同时访问同一个变量而不会发生数据竞争。这是一个不需要加锁也能保证线程安全的变量，但只保证单一的读写操作原子性，不能保证复合操作的原子性。原子变量的使用方式如下：
+\begin{minted}{cpp}
+std::atomic<int> counter(0); // 原子变量
+// 线程A
+counter++; // 原子操作，线程安全
+if (counter.load() > 10) { // 原子操作，线程安全
+    // do something
+}
+// 线程B
+counter--; // 原子操作，线程安全
+counter = -counter; // 事务性不安全，数据可能被覆盖
+\end{minted}
+为了保证最后这个事务性操作的逻辑安全（编译上肯定没问题，因为所有操作都是原子的，只是操作复合了，可能在中途 \verb|counter| 就被其他线程修改了），我们必须使用CAS循环（Compare-And-Swap，比较并交换）来保证事务性操作的逻辑安全。CAS循环的使用方式如下：
+\begin{minted}{cpp}
+std::atomic<int> counter(0); // 原子变量
+// 线程A
+int expected = counter.load(); // 读取当前值
+int desired = expected + 1; // 计算期望值
+while (!counter.compare_exchange_weak(expected, desired)) { // 尝试更新，如果失败，expected会被更新为当前值
+    desired = expected + 1; // 重新计算期望值
+}
+\end{minted}
+除了 \verb|compare_exchange_weak|，还有 \verb|compare_exchange_strong|，它们的区别在于前者可能会因为虚假失败而返回 false，而后者则不会。一般来说，如果在循环中使用，推荐使用前者，因为它可能会更快。
+
+此外，原子变量还解决了CPU的OoO问题。OoO指的是CPU为了提高性能，允许某一条指令的操作数好了就提前开跑，而不管这条指令和前后指令的逻辑先后顺序；表现在多线程上，就是一个线程的操作可能会被重排到另一个线程的操作之前，从而导致加了锁也没用。为了解决这个问题，C++提供了内存顺序（memory order）来保证原子变量的操作顺序，能规避OoO问题，有以下几种：
+\begin{itemize}
+    \item \verb|memory_order_seq_cst|：默认的顺序，保证所有线程看到的操作顺序一致；
+    \item \verb|memory_order_acquire|：获取操作，保证在此操作之前的所有读写操作都已经完成，常用于数据的“消费者”获取数据；
+    \item \verb|memory_order_release|：释放操作，保证在此操作之后的所有读写操作都不会被重排到此操作之前，常用于数据的“生产者”发布数据；
+    \item \verb|memory_order_relaxed|：放宽顺序，不保证操作顺序一致，但可以提高性能，实际是直面OoO，只保证原子操作的原子性，因此建议仅在不涉及数据依赖的情况下使用。
+\end{itemize}
+
+\begin{minted}{cpp}
+std::atomic<bool> ready{false};
+int data = 0;
+
+// 线程甲
+data = 42;       
+ready.store(true, std::memory_order_release); // 发布（Release）
+
+// 线程乙
+while (!ready.load(std::memory_order_acquire)); // 获取（Acquire）
+std::println("Data: {}", data); // 读取到的 data 是 42
+\end{minted}
+
+这个操作需要注意的另一点是：操作顺序不等于到达顺序。例如以下情景：
+\begin{minted}{cpp}
+std::atomic<bool> x{false}, y{false};
+
+// 线程甲
+x.store(true, std::memory_order_*);
+y.store(true, std::memory_order_*);
+
+// 线程乙
+std::println("x: {}, y: {}", x.load(std::memory_order_*), y.load(std::memory_order_*));
+\end{minted}
+读到的 \verb|y| 是true，能否保证读到的 \verb|x| 也是true呢？答案是分情况讨论：
+\begin{itemize}
+    \item 如果是 \verb|seq_cst|，那可以保证，因为它保证了所有线程看到的操作顺序一致；
+    \item 其他：不能保证。它们最多只能保证本线程的指令不重排，不保证另一个线程能感知到本线程内部两个不同变量的先后顺序。
+\end{itemize}
+因此，如果对两个变量的操作顺序有强依赖，最省事的是全用 \verb|seq_cst|，或者用 \verb|release| 和 \verb|acquire| 来保证数据的“生产者-消费者”关系，在或者使用内存栅栏（memory fence）来保证操作顺序。
+
+\paragraph{信号量} 信号量可以理解为“停车场空位可以有多少”。其内部维护一个计数器，支持三个操作：
+\begin{itemize}
+    \item \verb|acquire()|：尝试将信号量的计数器减一，如果计数器为零，则阻塞当前线程，直到有其他线程释放信号量，即 \verb|P()| 操作，是原子的；
+    \item \verb|release(n=1)|：释放一个信号量，增加计数器的值，并唤醒n个等待的线程（如果有的话，默认为1），即 \verb|V()| 操作，是原子的；
+    \item \verb|try_acquire()|：尝试获取信号量，如果计数器为零，则立即返回 false，否则减一并返回 true。
+\end{itemize}
+信号量是没有所有权的，任何线程都可以释放信号量。这实际上是很灵活的，但也很危险。如果某个线程因为异常或逻辑错误少调用了 \verb|release()|，那么其他线程就可能永远阻塞，导致假死。此外，信号量有硬上限，可以传入一个较大的数值。此外，在极端的高性能场景，其调用开销不如无锁队列；但对于常规业务已经基本足够。最后，信号量不保护，只计数，因此要保护的话还是要加锁。
+
+另一个信号量是 \verb|std::binary_semaphore|，它是一个二值信号量，计数器只能为0或1。强烈不建议用它替代 \verb|std::mutex|。
+
+其典型用途是限流，比如限制同时访问某个资源的线程数，或者实现生产者-消费者模型。
+
+\begin{minted}{cpp}
+#include <semaphore>
+
+std::counting_semaphore<3> sem(3); // 初始化信号量，计数器为3
+
+void heavy_task(int id) {
+    sem.acquire(); // 尝试获取信号量，如果计数器为0，则阻塞
+    std::cout << "Thread " << id << " is doing heavy task." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(2)); // 模拟耗时任务
+    std::cout << "Thread " << id << " finished heavy task." << std::endl;
+    sem.release(); // 释放信号量，增加计数器并唤醒一个等待的线程
+}
+
+int main() {
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back(heavy_task, i); // 创建10个线程
+    }
+    for (auto& t : threads) {
+        t.join(); // 等待所有线程完成
+    }
+    return 0;
+}
+\end{minted}
+这个代码中，控制台会每隔2秒输出3行，表示同时只有三个线程在执行，而其他线程则在等待信号量的释放。
+
+或者把它当成纯计数器也行。它实现了和原子量、条件变量类似的功能：当队列中没有东西的时候，消费者会睡觉、等着生产者产生新的数据，而不是空转CPU。
+\begin{minted}{cpp}
+#include <queue>
+#include <mutex>
+#include <semaphore>
+
+std::queue<int> q;
+std::mutex mtx;
+std::counting_semaphore<1000> data_count(0); // 假设队列不会这么长
+
+// 生产者
+void producer() {
+    for (int i = 0; i < 10; ++i) {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            q.push(i);
+        }
+        data_count.release(); // 通知有一个数据可用
+        std::cout << "Produced: " << i << std::endl;
+    }
+}
+
+// 消费者
+void consumer() {
+    for (int i = 0; i < 10; ++i) {
+        data_count.acquire(); // 等待数据（计数 > 0）
+        std::lock_guard<std::mutex> lock(mtx);
+        int val = q.front();
+        q.pop();
+        std::cout << "Consumed: " << val << std::endl;
+    }
+}
+\end{minted}
+
+\paragraph{任务打包} 任务打包（\verb|std::packaged_task|）是一个模板类，它允许你将一个可调用对象（函数、函数指针、lambda表达式等）包装成一个任务，并与一个 \verb|std::future| 对象关联，从而可以在未来的某个时间点获取任务的结果。任务打包的使用方式如下：
+\begin{minted}{cpp}
+std::packaged_task<int(int, int)> task([](int a, int b) { return a + b; }); // 打包一个加法任务
+std::future<int> result = task.get_future(); // 获取与任务关联的 future
+task(2, 3); // 执行任务
+std::println("Result: {}", result.get()); // 获取结果并打印
+\end{minted}
+这个东西不能复制，只能移动，只能调用一次，且会把异常传进 \verb|std::future| 对象中。当调用 \verb|result.get()| 时，如果任务抛出了异常，那么这个异常会被重新抛出，从而可以在调用方捕获。
+
+\paragraph{栅栏} 可复用栅栏（\verb|std::barrier|）和一次性栅栏（\verb|std::latch|）是两个同步原语，它们都用于线程之间的同步，但有不同的使用场景。可复用栅栏是阶段性的同步，而一次性栅栏是一次性的同步。注意：这两个栅栏不是内存栅栏（fence）。
+
+一次性栅栏是一个向下的计数器，在创建时就设定一个初始值。不同的线程可以递减这个计数器或阻塞等待，直到计数器归零。当计数器归零后，该栅栏被释放，所有等待的线程都会被唤醒。一次性栅栏的使用方式如下：
+\begin{minted}{cpp}
+#include <latch>
+std::latch latch(3); // 创建一个计数器为3的栅栏
+// 子线程们
+{
+    // working...
+    latch.count_down(); // 递减计数器
+}
+
+// 主要线程
+{
+    latch.wait(); // 阻塞等待，直到计数器归零
+    // 所有子线程都完成了工作，可以继续执行
+}
+\end{minted}
+一次性栅栏是无锁的，适合用于一次性的同步场景。
+
+可复用栅栏与前者类似，但它可以在每个阶段结束后被重置，从而可以在多个阶段中使用。可复用栅栏的使用方式如下：
+\begin{minted}{cpp}
+#include <barrier>
+std::barrier barrier(3); // 创建一个计数器为3的栅栏
+// 子线程们
+{
+    for (int phase = 0; phase < 3; ++phase) {
+        // 模拟一个多阶段且需要常常同步的工作
+        barrier.arrive_and_wait(); // 递减计数器并阻塞等待，直到计数器归零
+        // 所有线程都到达了栅栏，可以继续执行
+    }
+}
+// 主要线程
+{
+    for(auto& t : threads) {
+        t.join(); // 等待所有子线程完成
+    }
+}
+\end{minted}
+注意：构造栅栏时指定的线程数量必须和实际参与的线程数目一致。如果有一个线程需要中途退出，那么就必须在退出前调用 \verb|barrier.arrive_and_drop()|，以减少后续阶段的参与计数，否则会导致其他线程一直阻塞等待，最终导致假死。
+
+\subsection{竞态条件、死锁和逻辑死锁}
+
+虽然在RAII和线程池的设计下把这三尊大佛规避了大半，但实际情形是如果逻辑错误，那这些条件都有可能发生。下面就拿出来讲讲怎么预防它们。
+
+\paragraph{竞态条件}
+
+在多个线程同时访问共享资源时，如果有多个线程试图读写该资源而没有明显的顺序，就可能会出现竞态条件（Race Condition）。竞态条件发生的主要原因是没有加锁或没有按原子操作，导致多个线程同时修改共享资源，从而产生不可预测的结果。竞态条件的典型结果是：程序能编译，能执行完，但结果不符合预期，且多次执行得到的结果不同。
+
+比如说下面这个代码就会产生竞态条件：
+\begin{minted}{cpp}
+#include <iostream>
+int counter = 0; // 共享资源
+void increment() {
+    for (int i = 0; i < 100000; ++i) {
+        ++counter; // 竞态条件：多个线程同时修改 counter
+    }
+}
+int main() {
+    std::thread t1(increment);
+    std::thread t2(increment);
+    t1.join();
+    t2.join();
+    std::cout << "Counter: " << counter << std::endl; // 结果可能不是 200000
+    return 0;
+}
+\end{minted}
+为了避免竞态条件，我们有三个主要手段：
+\begin{itemize}
+    \item 上锁：
+    \begin{minted}{cpp}
+std::mutex mtx; // 互斥量
+void increment() {
+    for (int i = 0; i < 100000; ++i) {
+        std::lock_guard<std::mutex> lock(mtx); // 上锁
+        ++counter; // 访问共享资源
+    }
+}
+    \end{minted}
+    \item 原子操作：
+    \begin{minted}{cpp}
+std::atomic<int> counter(0); // 原子变量
+void increment() {
+    for (int i = 0; i < 100000; ++i) {
+        ++counter; // 原子操作，线程安全
+    }
+}
+    \end{minted}
+    \item 传拷贝而不是引用，避免共享状态。
+\end{itemize}
+
+\paragraph{死锁}
+
+死锁是指多个线程在等待彼此持有的资源，从而导致所有线程都无法继续执行。死锁发生的主要原因是：
+\begin{itemize}
+    \item 不可剥夺：线程持有的资源不能被其他线程强行夺走；
+    \item 占有且等待：线程自己持有资源的同时又在等待其他线程持有的资源；
+    \item 互斥：线程对资源的访问是互斥的，即同一时间只能有一个线程访问资源；
+    \item 循环等待：线程形成一个环形的等待链，每个线程都在等待下一个线程持有的资源。
+\end{itemize}
+就相当于：车钥匙在家里，家门钥匙却在车里，而且车钥匙和家门钥匙都只有一把，导致车和家都无法进入。死锁的主要表现是：程序卡住了，无法继续执行，且没有任何错误提示，且并不会很吃CPU资源。
+
+只要废掉这四个条件中的任何一个，就可以避免死锁的发生：
+\begin{itemize}
+    \item 废掉不可剥夺：可以使用信号量或条件变量来实现资源的可剥夺性，即当一个线程持有资源时，如果其他线程需要该资源，可以强制该线程释放资源，从而避免死锁。举例：请开锁师傅帮忙开其中一个门。
+    \item 废掉占有且等待：可以要求线程在获取资源时一次性获取所有需要的资源，或者在获取资源时不持有其他资源，从而避免死锁。举例：车钥匙和家门钥匙都串在一起，一次性拿走。
+    \item 废掉互斥：可以使用读写锁或共享锁来允许多个线程同时访问资源，从而避免死锁。举例：准备备用钥匙。
+    \item 废掉循环等待：可以给资源分配一个全局的顺序号，使得线程在请求资源时按照顺序进行，从而避免循环等待。举例：一开始就别把房门钥匙锁到车里。实际上这是破除死锁的核心法则。
+\end{itemize}
+
+实际情况下一般按下面四步骤操作：
+\begin{enumerate}
+    \item 固定锁顺序，约定所有线程都必须按相同的顺序加锁。只要顺序一致就不可能死锁。
+    \item 一次性获取所有锁，避免占有且等待。
+    \item 少加锁，只有真正操作共享数据的临界区内才上锁，否则坚决不加锁。
+    \item 如果长期拿不到锁，就放弃当前操作，主动释放已有的锁，防止无限僵持。
+\end{enumerate}
+
+\paragraph{逻辑死锁}
+
+逻辑死锁是指程序在逻辑上陷入了死循环，但不是因为资源竞争导致的死锁。比如说，信号量丢失（少 \verb|release()| 了一次导致之后的线程等待一次永远都不会来的 \verb|release()|）、参与量计数永久未达标（少 \verb|arrive_and_drop()| 了一次导致之后的线程等待一次永远都不会来的同步）等。这种情况是有线程等待一个永远不来的事件，虽然不符合死锁的经典条件，效果却一致：整个系统会卡死。
+
+对于这种情况，最好的办法就是：RAII，或永远不要绕过计数器直接操作。这个和我们先前讨论的抛出异常时对资源的处理方法类似：要么RAII，要么在可能抛异常的地方之后再开始计数，再或者在即将抛异常之前释放计数。总之，不RAII的情况下，信号量或参与量必须被正确的调用。
+
+比如我们来RAII地包装一个信号量：
+\begin{minted}{cpp}
+template <int T>
+class CountingSemaphoreGuard{
+    std::counting_semaphore<T>& sem;
+public:
+    CountingSemaphoreGuard(std::counting_semaphore<T>& s) : sem(s) { sem.acquire(); } // 构造时获取信号量
+    ~CountingSemaphoreGuard() { sem.release(); } // 析构时释放信号量
+    CountingSemaphoreGuard(const CountingSemaphoreGuard&) = delete; // 禁止拷贝
+    CountingSemaphoreGuard& operator=(const CountingSemaphoreGuard&) = delete; // 禁止赋值
+    CountingSemaphoreGuard(CountingSemaphoreGuard&&) = delete; // 禁止移动
+}; // 之后就用它来RAII的包装信号量，保证每次 acquire() 都有对应的 release()，从而避免逻辑死锁。
+\end{minted}
+极端情况下，也可以用超时重置机制。但这是最后的手段。

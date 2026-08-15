@@ -1,0 +1,359 @@
+\subsection{红黑树}
+
+顺序表支持随机访问，但在中间插入或删除元素的时间复杂度为 $O(n)$；链表支持在中间插入或删除元素的时间复杂度为 $O(1)$，但不支持随机访问。我们希望有一种数据结构，它既支持随机访问，又支持在中间快速的插入或删除元素。
+
+能不能把访问和插入/删除的时间复杂度都降低到$O(1)$呢？很遗憾，不能。实际上有这个定理，“不存在这样的数据结构”是这个定理的推论。
+\begin{theorem}{Fredman-Saks 下界}{}
+    任何数据结构维护一个动态序列，其按物理位置查找和插入/删除的时间复杂度的和至少为$\Omega(\log n / \log \log n)$，其中$n$是序列的长度。
+\end{theorem}
+
+\begin{corollary}{}{}
+    不存在一种数据结构，它既支持基于物理内存位置的$O(1)$随机访问，又支持在中间$O(1)$的插入或删除元素。
+\end{corollary}
+
+所以我们只能退而求其次，利用定理的结论，让查找、插入/删除的时间复杂度的和至少为$\Omega(\log n / \log \log n)$。一般的实现是$O(\log n)$的，例如红黑树。
+
+为了解释清楚红黑树，要先解释清楚二叉搜索树。
+
+\paragraph{二叉搜索树} “树”是一种数据结构，它由节点组成。每一个节点都包含指向其子节点的指针，一个节点可以有任意多个子节点，也可以没有子节点；一个节点至多有一个父节点。没有父节点的节点被称为“根”节点，没有子节点的节点被称为“叶子”节点。一棵树有且仅有一个根节点，但可以有任意多个叶子节点。
+
+插入，显然是常数的（因为只需要动一个指针），但查找和删除看起来比线性数据结构还要复杂啊！
+
+我们不妨思考一下在\textbf{有序的}顺序表中怎么去查找一个元素。最快的方法自然是二分查找：先和中间值比较，如果小于中间值，就在左半部分继续查找；如果大于中间值，就在右半部分继续查找。每次查找都将查找范围缩小一半，直到找到目标元素或者查找范围为空。
+
+那么，模仿这个过程，保证这个树的一个节点至多有2个子节点，左子节点比他小，右子节点比他大，那么查找的时候就可以这样：先和中间值比较，如果小于中间值，就在左子树继续查找；如果大于中间值，就在右子树继续查找。每次查找都将查找范围缩小一半，直到找到目标元素或者查找范围为空。而向树中插入一个元素时，也可以按照同样的规则找到合适的位置插入，且新插入的元素一定是叶子节点。
+
+最后的问题自然是如何删除元素了。当删除的是叶子时，直接删除即可；删除树中间的元素时，我们可以将这个节点的值替换为它的左子树中最大的值或者右子树中最小的值，然后删除那个叶子节点。这样就可以保证树的结构不变。
+
+这个东西，就叫\textbf{二叉搜索树}（Binary Search Tree，BST），如图~\cref{fig:bst} 所示。
+\begin{minted}{cpp}
+struct TreeNode {
+    int val;
+    std::unique_ptr<TreeNode> left;
+    std::unique_ptr<TreeNode> right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+
+class BinarySearchTree {
+    std::unique_ptr<TreeNode> root;
+public:
+    BinarySearchTree() : root(nullptr) {}
+    BinarySearchTree(const std::vector<int>& values) : root(nullptr) {
+        for (const auto& value : values) insert(value);
+    }
+    void insert(int value) {
+        if (!root) {
+            root = std::make_unique<TreeNode>(value);
+            return;
+        }
+        TreeNode* current = root.get();
+        while (true) {
+            if (value < current->val) {
+                if (!current->left) {
+                    current->left = std::make_unique<TreeNode>(value);
+                    return;
+                }
+                current = current->left.get();
+            } else {
+                if (!current->right) {
+                    current->right = std::make_unique<TreeNode>(value);
+                    return;
+                }
+                current = current->right.get();
+            }
+        }
+    }
+    bool search(int value) const {
+        TreeNode* current = root.get();
+        while (current) {
+            if (value == current->val) return true;
+            current = (value < current->val) ? current->left.get() : current->right.get();
+        }
+        return false;
+    }
+    void remove(int value) {
+        root = removeNode(std::move(root), value);
+    }
+private:
+    std::unique_ptr<TreeNode> removeNode(std::unique_ptr<TreeNode> node, int value) {
+        if (!node) return nullptr;
+        if (value < node->val) {
+            node->left = removeNode(std::move(node->left), value);
+        } else if (value > node->val) {
+            node->right = removeNode(std::move(node->right), value);
+        } else {
+            if (!node->left) return std::move(node->right);
+            if (!node->right) return std::move(node->left);
+            TreeNode* minNode = findMin(node->right.get());
+            node->val = minNode->val;
+            node->right = removeNode(std::move(node->right), minNode->val);
+        }
+        return node;
+    }
+    TreeNode* findMin(TreeNode* node) const {
+        while (node && node->left) node = node->left.get();
+        return node;
+    }
+};  
+\end{minted}
+
+但是，朴素的二叉搜索树有一个问题：如果插入的元素本来就高度有序，那么这东西最终很快就会退化成链表，这样查找的时间复杂度就会从 $O(log n)$ 退化到 $O(n)$，如图~\cref{fig:bad-bst} 所示。
+
+\begin{figure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includestandalone{images/binary-search-tree}
+        \caption{二叉搜索树，插入的顺序是537246}
+        \label{fig:bst}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includestandalone{images/bad-bst}
+        \caption{几乎退化成链表的二叉搜索树，插入的顺序是654378}
+        \label{fig:bad-bst}
+    \end{subfigure}
+\end{figure}
+
+很容易看出来到底发生了什么。当我们按照~\cref{fig:bad-bst} 中的顺序插入元素时，根据朴素的二叉树规则，新的节点总是加在左（右）边，导致树的高度变得很高，但每一层并没有“填满”；而好的二叉树应该是~\cref{fig:bst} 中的样子，树的高度尽量低，每一层尽量填满。于是我们就需要一种机制来保证二叉搜索树的高度尽量低，这就是红黑树。
+
+\paragraph{红黑树}
+
+红黑树是一种二叉搜索树。比起朴素的二叉搜索树，红黑树只干了一件事：设定一套规则，让树的高度尽量低、每一层尽量填满。红黑树的规则如下：
+\begin{itemize}
+    \item 每一个节点，要么是红的，要么是黑的；
+    \item 根节点必须是黑的\footnote{部分书籍允许根节点是红的。“根节点必须是黑的”这条性质要求完成插入操作后若根节点为红色则将其染黑，但实际这个操作确实可以延迟到删除操作时再进行，所以不是本质的要求。}；
+    \item 每一个叶子节点（NIL节点，空节点）是黑的；
+    \item 如果一个节点是红的，那么它的两个子节点必须是黑的；
+    \item 新插入的节点必须是红的（如果因此违反了规则，需要进行调整）；
+    \item 对于每一个节点，从该节点到其所有后代叶子节点的简单路径上，必须包含相同数目的黑色节点。
+\end{itemize}
+
+\begin{figure}
+    \centering
+    \includestandalone{images/rbt}
+    \caption{一棵红黑树}
+    \label{fig:rbt}
+\end{figure}
+
+所以，在插入一个节点时，新节点的父亲可能是黑的，也可能是红的。
+\begin{itemize}
+    \item 如果新节点的父亲是黑的，那么插入操作完成后，红黑树仍然满足所有性质；
+    \item 如果新节点的父亲是红的，那么插入操作完成后，红黑树不再满足性质4（红色节点不能有红色子节点），需要调整，此时包括：
+    \begin{itemize}
+        \item 父叔同红~\cref{fig:rbt-insert1-1}，父叔都染黑~\cref{fig:rbt-insert1-2}，调整结束。
+        \item 父红叔黑，父子同向（即父子都是左孩子，或者父子都是右孩子）~\cref{fig:rbt-insert2-1}：父变祖父，祖父变父亲的右（左）子树~\cref{fig:rbt-insert2-2}，父染黑、祖染红~\cref{fig:rbt-insert2-3}，调整结束。
+        \item 父红叔黑，父子异向（即父亲是左孩子，子节点是右孩子，或者父亲是右孩子，子节点是左孩子）~\cref{fig:rbt-insert3-1}：子变父，父变子的左（右）子树~\cref{fig:rbt-insert3-2}。现在变成了第二种情况（父子同向），继续调整。
+    \end{itemize}
+\end{itemize}
+
+\begin{figure}
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify1-1}
+        \caption{}
+        \label{fig:rbt-insert1-1}
+    \end{subfigure}
+    % \hfill
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify1-2}
+        \caption{}
+        \label{fig:rbt-insert1-2}
+    \end{subfigure}
+    \caption{红黑树插入节点的调整过程1：父叔同红}
+\end{figure}
+\begin{figure}
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify2-1}
+        \caption{}
+        \label{fig:rbt-insert2-1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify2-2}
+        \caption{}
+        \label{fig:rbt-insert2-2}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify2-3}
+        \caption{}
+        \label{fig:rbt-insert2-3}
+    \end{subfigure}
+    \caption{红黑树插入节点的调整过程2：父红叔黑，父子同向}
+\end{figure}
+\begin{figure}
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify3-1}
+        \caption{}
+        \label{fig:rbt-insert3-1}
+    \end{subfigure}
+    % \hfill
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includestandalone{images/rbt-modify3-2}
+        \caption{}
+        \label{fig:rbt-insert3-2}
+    \end{subfigure}
+    \caption{红黑树插入节点的调整过程3：父红叔黑，父子异向}
+\end{figure}
+
+至于删除，那麻烦就更大了。首先，红黑树是二叉搜索树，所以删除节点的方式和二叉搜索树完全一致：如果删除的是叶子节点，直接删除即可；如果删除的是中间节点，则将这个节点的值替换为它的左子树中最大的值或者右子树中最小的值，然后删除那个叶子节点。然后再根据红黑树的性质进行调整，这里不妨记真正被删除的节点的颜色$y$，以及谁来“顶替”这个被删除的节点$x$。容易理解，如果$y$是红色，那么这个操作不会破坏任何红黑树的性质。但如果$y$是黑色，这个操作会破坏性质4（根到nil的黑色节点数目要相同）。所以，有以下四条情况，请读者自行验证调整后的树会满足红黑树的性质：
+\begin{itemize}
+    \item 兄弟是红的。此时，令兄弟成为新的父亲，父亲成为兄弟的左（$y$在左）或右（$y$在右）子树，但$y$还是父亲的儿子。然后，交换兄弟和父亲的颜色，转为下列情况之一。
+    \item 兄弟和所有侄子都是黑的。此时，兄弟变红，父亲染黑，调整结束。
+    \item 兄弟是黑的，更远的侄子（$y$在左，则这里是兄弟的右节点；反之亦然）是红的。此时，兄弟变父亲，父亲变成兄弟的左（$y$在左）或右（$y$在右）子树，交换兄弟和父亲的颜色，将新叔叔（原来的远侄子）染成黑色，调整结束。
+    \item 兄弟是黑的，更近的侄子是红的。此时，更近的侄子变兄弟，兄弟变成更近的侄子的右（$y$在左）或左（$y$在右）子树，新兄弟（原来的侄子）变黑，新远侄子（原来的兄弟）变红，转为第三种情况继续处理。
+\end{itemize}
+
+红黑树的代码复杂，这里就不展示了。在C++中，红黑树的实现是 \verb|std::set| 和 \verb|std::map|，它们的底层实现就是红黑树。由于红黑树的高度是$O(\log n)$，所以它们的查找、插入和删除操作的时间复杂度都是$O(\log n)$。
+
+\paragraph{集合} \verb|std::set<T>| 是一个集合，它的底层实现是红黑树。它的特点是：
+\begin{itemize}
+    \item 元素是唯一的，不能重复；
+    \item 元素是有序的，默认是升序排列；
+    \item 查找、插入和删除操作的时间复杂度都是$O(\log n)$。
+\end{itemize}
+
+\verb|std::set| 的迭代器是顺序访问迭代器（因为是树），所以不支持排序（虽然它天然“有序”），也不支持二分查找（但其底层天然是二分查找），请使用 \verb|std::set::find|、\verb|std::set::lower_bound|、\verb|std::set::upper_bound| 等成员函数来查找元素。
+
+\textbf{但该容器的空间复杂度和时间复杂度常数非常大}，如果是偏静态的查找（构建后只查不改）且数据量不大（1000以内），其效果不如 \verb|std::vector|、\verb|std::sort| 和 \verb|std::binary_search| 的组合，这个的时间常数非常小，在不涉及频繁插删的情况下更快。
+
+此外，\verb|std::set| 的有序性依赖于严格弱序，判断重复用的不是 \verb|==|，而是 \verb|<|。如果 \verb|a<b| 和 \verb|b<a| 都为假，则认为 \verb|a| 和 \verb|b| 是相同的元素。也就是说，\verb|std::set| 的有序性依赖于严格弱序，而不是等价关系。另外，这个比较必须是稳定且不改变元素状态的，否则会产生未定义行为。类似的，绝对禁止使用 \verb|std::set| 的迭代器去修改元素的值，因为这会破坏红黑树的性质，导致未定义行为。C++ 标准规定：修改任何元素键值若改变排序位置，属于未定义行为，编译器不会报错，但运行结果随机。
+
+此外，\verb|std::set| 必须使用异构查找来消灭临时对象，即在 \verb|std::set<T, std::less<>>| 中使用 \verb|std::less<>|，而不是 \verb|std::less<T>|。否则，查找时会创建一个临时对象，这个临时对象的生命周期只在查找函数中，浪费一次堆内存分配。
+
+此外，\verb|std::set| 是线程不安全的，高并发场景不要使用该容器。
+
+最后，节点句柄使得现在拿出某一个特定的元素很容易了：
+\begin{minted}{cpp}
+std::set<int> s = {1, 2, 3, 4, 5};
+auto it = s.extract(5); // 提取元素 5，返回一个节点句柄
+s.insert(std::move(it)); // 将节点句柄重插入到集合中
+\end{minted}
+这样是零拷贝用法，能避免不必要的拷贝和析构，提升性能。这个拿出来的句柄甚至可以修改，但 \verb|std::set| 不能改，\verb|std::map| 等就能改了。
+
+但 \verb|std::set| 的巨大优势在于，除非迭代器指向一个被删除的元素，否则迭代器不会失效。也就是说，\verb|std::set| 的迭代器是稳定的。
+
+因此，\verb|std::set| 仅在一种情况下有用：频繁插入、删除、查找，且数据量极大。否则，请尽量使用其他数据结构。
+
+\paragraph{映射} \verb|std::map<K, V>| 是一个映射，它的底层实现也是红黑树。它的特点是：
+\begin{itemize}
+    \item 键是唯一的，不能重复；
+    \item 键是有序的，默认是升序排列；
+    \item 查找、插入和删除操作的时间复杂度都是$O(\log n)$。
+\end{itemize}
+在业务逻辑上，把 \verb|std::map<K, V>| 看作一个字典就行。它基本上和 \verb|std::set| 一样：红黑树底层、严格弱序比较、异构查找、线程不安全、迭代器稳定、适用范围等。
+
+但因为它多了一个 \verb|V|，所以有了一些好处和注意事项。
+
+首先，\verb|std::map| 的迭代器是 \verb|std::pair<const K, V>|，也就是说，迭代器指向的键是 \verb|const| 的，不能修改。因为如果修改了键，那么这个元素在红黑树中的位置就会改变，从而破坏红黑树的性质，导致未定义行为。但值可以随便改，包括迭代器等。
+
+其次，\verb|std::map::operator[]| 的行为和 \verb|std::map::at| 不同。前者如果键不存在，会创建一个新的元素，值为默认构造的 \verb|V|；后者如果键不存在，会抛出 \verb|std::out_of_range| 异常。因此，绝对禁止用方括号去查找，必须用 \verb|std::map::find|、\verb|std::map::contains| 来查找。此外，使用方括号时的“不存在则插入”性质会要求键值对中的值默认可构造，否则不能编译，但其他算法或成员方法依然可用。若想插入或修改，使用 \verb|std::map::insert_or_assign| 更好一些。
+
+最后，\verb|std::map::emplace| 和 \verb|std::map::try_emplace|的行为不同：前者无论插入是否成功，都会去构造；而后者只有当插入成功（键不存在）时，才会去构造。也就是说，\verb|std::map::try_emplace| 可以避免不必要的构造，从而提高性能。
+
+\paragraph{多重集合、多重映射} 这俩玩意依然是红黑树。内存模型、迭代器稳定性、异构查找、严格弱序的比较器，线程不安全、适用范围等都和 \verb|std::set|、\verb|std::map| 一样。但他们允许等价元素的重复，所以这就把许多行为彻底改写了。
+
+首先，我们使用多重集合、多重映射的时候，往往查找时要的就不是“第一个”了，而是“全部”。那么这时候用 \verb|find| 就不行，必须使用 \verb|equal_range|，它返回一个区间，包含所有等价元素的迭代器。然后我们就可以遍历这个区间，处理所有等价元素。
+\begin{minted}{cpp}
+std::multiset<int> ms = {1, 2, 2, 3, 4};
+auto [beg, end] = ms.equal_range(2); // 返回一个区间，包含所有等价元素的迭代器
+for (auto it = beg; it != end; ++it) {
+    std::cout << *it << " "; // 输出 2 2
+}
+\end{minted}
+但如果只想知道“有没有”，不想知道“有哪些”，那就用 \verb|find| 也行。因为 \verb|find| 返回的是第一个等价元素的迭代器，如果返回的是 \verb|end|，说明没有；否则，说明有。不能 \verb|count|，它会大规模遍历、偷吃性能，只有在你想知道“有多少个”等价元素时才用 \verb|count|。
+
+其次，这俩东西的插入操作是\textbf{永远成功}的：重复键一定允许插入，不会存在单集合、单映射的拒绝插入场景。所以，在实际业务逻辑中，我们不能通过返回值来判断“这是否首次出现”，必须使用 \verb|count| 或者 \verb|equal_range| 来判断“有多少个”等价元素。
+
+再次，这东西不能用方括号和 \verb|at| 来查找，因为他们的键不是唯一的，不能用一个键去唯一确定一个值。要插入，必须 \verb|insert|；要修改，必须先 \verb|equal_range|，找到具体的迭代器再改（当然只能改多重映射的值）。
+
+最后，\verb|erase| 也不一样：\verb|erase(key)| 会删除所有等价元素；\verb|erase(iterator)| 会删除指定迭代器指向的元素。
+
+\subsection{哈希表}
+
+再次回顾一下平衡二叉搜索树。它能做到插入删除和检索的速度都是$O(\log n)$。我们也知道，不存在一种数据结构，它既支持基于物理内存相对位置的$O(1)$随机访问，又支持在中间$O(1)$的插入或删除元素。
+
+那么，能不能“不基于物理内存位置”来进行$O(1)$随机访问呢？答案是肯定的，这就是哈希表。哈希表的底层是一个普通的顺序表，但它上面有一个哈希函数：我们将一个输入通过哈希函数能映射到一个整数，这个整数对数组长度取模，就能得到一个数组下标，形成变相的随机访问。如果不同的键算出相同的下标（哈希冲突），可以用其他手段来解决，比如拉链法：把这个底层顺序表存的不再是数值，而是一个红黑树，形成一个红黑树森林（这里一般叫“桶”，也可以用其他数据结构来实现桶）。如果发生冲突，就把新元素挂在对应的红黑树末尾。这样，哈希表的查找、插入和删除操作的时间复杂度都是$O(1)$，但最坏情况下（所有的键全都撞在同一个位置），就可能退化到$O(\log n)$（红黑树森林）或$O(n)$（朴素拉链），所以哈希表的性能极度依赖于哈希函数的质量。
+
+所以实际上可以看出这是一个投机取巧的手段：顺序表的随机访问是“给我第$i$个元素”，而哈希表的“随机访问”是“给我Key为‘张三’的元素”：这么一来，哈希表里，元素根本就没有“中间”这个概念！
+
+因此所有的插入、删除、查找，只要不发生哈希冲突，就都是$O(1)$的时间复杂度：不管输入什么，先进哈希函数滚一圈变成整数，然后利用顺序表的随机访问性质就都能在常数时间内完成。
+
+但这导致了一个致命的问题：哈希表里的元素\textbf{不可能有序}，他也不可能提供“按物理位置插入”的功能。所以哈希表的迭代器是顺序访问迭代器，不能排序。
+
+\paragraph{无序集合和无序映射} 在C++中，\verb|std::unordered_set<T>| 和 \verb|std::unordered_map<K, V>| 就是哈希表的实现。它们的特点是：
+\begin{itemize}
+    \item 元素是唯一的，不能重复；
+    \item 元素是无序的，不能排序；
+    \item 查找、插入和删除操作的时间复杂度都是$O(1)$，但最坏情况下可能退化到$O(n)$。
+\end{itemize}
+
+无序集合和无序映射的时间复杂度常数项非常大，所以数据不大（低于100）时，可以选择顺序表来代替。
+
+C++20之前的 \verb|std::hash<std::string>| 是一个非常糟糕的哈希函数，容易导致哈希冲突，甚至被恶意利用进行拒绝服务攻击（DoS）。C++20之后，\verb|std::hash<std::string>| 改进了哈希函数，避免了这个问题。重点是避免多个元素落入同一个桶：有东西的桶数量越多，哈希表的性能就越好。
+
+哈希表是按需重新分配大小的，且哈希表的重分配代价巨大：所有元素重新分桶，所有迭代器全部失效。因此，如果能预知元素数量，务必预分配桶：
+\begin{minted}{cpp}
+constexpr std::size_t EXPECTED_MAX_SIZE = 1000000;
+std::unordered_set<int> uset;
+uset.reserve(EXPECTED_MAX_SIZE * 1.5); // 预分配桶，避免哈希表重分配
+\end{minted}
+这里乘1.5的主要原因是C++的哈希表在填满75\%时就会进行重分配，所以预分配时要留出一定的空间。
+
+无序集合和无序映射的比较器要求是只实现相等和哈希即可。当你的类型不是预先定义的类型时，想把这种东西塞进无序集合和无序映射的键时，必须自己特化一个 \verb|std::hash|：
+\begin{minted}{cpp}
+struct MyType {
+    int a;
+    std::string b;
+};
+
+struct MyTypeHash {
+    std::size_t operator()(const MyType& obj) const {
+        std::size_t h1 = std::hash<int>{}(obj.a);
+        std::size_t h2 = std::hash<std::string>{}(obj.b);
+        return h1 ^ (h2 << 1); // 或者使用其他组合方式
+    }
+}; // 这是一个仿函数，可以用括号调用
+
+std::unordered_set<MyType, MyTypeHash> mySet;
+\end{minted}
+此外，一切对无序集合和无序映射的排序都是不合理的。
+
+最后，哈希表的迭代器也是相当稳定的：当且仅当重新分桶或删除元素时，迭代器才会失效。
+
+哈希表的应用场景主要在于：不需要排序的超大量查找，且不介意偶发的最坏情况。如果需要有序的遍历、区间查询，请使用有序集合和有序映射。在量化交易这种不能接受偶尔的最坏情况的场景下，需使用其他的方法，如做平滑扩容，或使用非标准库的其他哈希表。
+
+\paragraph{多重无序集合} 这个还算能用。
+
+它和无序集合差不多，只是允许重复键，所以查找所有依然要用 \verb|equal_range|，插入永远成功，删除 \verb|erase(key)| 会删除所有等价元素，删除 \verb|erase(iterator)| 会删除指定迭代器指向的元素。
+
+一个问题是：假如有一百万个元素，且都是相同的键，那么这东西就变成链表了，挂在同一个桶里，性能非常不好。遇到这种情况，建议使用无序映射，把值当成计数器或放进数组，这样查找Key还是$O(1)$。
+
+这东西的迭代器失效规则和无序集合一样：当且仅当重新分桶或删除元素时，迭代器才会失效。特别注意：当使用\verb|equal_range|拿到区间并移除某些元素时，必须妥善保存下一个迭代器。
+\begin{minted}{cpp}
+auto range = umm.equal_range(key);
+for (auto it = range.first; it != range.second; ) {
+    if (cond) it = umm.erase(it); 
+    else ++it;
+}
+\end{minted}
+
+另外，多重有序集合保证插入顺序的稳定性，即先进集合的一定在左边，后进集合的在右边。但多重无序集合对此做不到，因为插入顺序无法保证。
+
+多重无序集合的应用面很窄：仅当你需要极频繁地插入重复 Key，且从不遍历重复组、从不关心顺序、Key 的重复度极低时，才考虑这个。
+
+最后，说一个事：\textbf{永远不要使用多重无序映射}。工业标准就是下面这个：
+\begin{minted}{cpp}
+std::unordered_map<Key, std::vector<Value>> myMap;
+// or std::unordered_map<Key, std::list<Value>> myMap; 当Value不多时
+// never std::unordered_multimap<Key, Value>
+\end{minted}

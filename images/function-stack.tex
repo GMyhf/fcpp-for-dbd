@@ -1,0 +1,40 @@
+\documentclass[tikz]{standalone}
+
+\usepackage{ctex}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}   
+\usetikzlibrary{positioning, arrows.meta, intersections, calc, fit, backgrounds}
+\usepgfplotslibrary{fillbetween}
+\begin{document}
+\begin{tikzpicture}[
+    node distance = 0.8cm, align=center,
+    byte/.style={draw, minimum width=6cm, minimum height=0.6cm, fill=green!20},
+    redbyte/.style={draw, minimum width=6cm, minimum height=0.6cm, fill=red!20},
+    emptybyte/.style={draw, minimum width=6cm, minimum height=0.6cm, fill=white},
+]
+
+\node[emptybyte] (empty1) {低地址（向下增长）};
+\node[redbyte, above of=empty1] (a) {a};
+\node[redbyte, above of=a] (b) {b};
+\node[redbyte, above of=b] (c) {c};
+\node[byte, above of=c] (d) {rbp (低4字节)};
+\node[byte, above of=d] (e) {rbp (高4字节)};
+\node[byte, above of=e] (f) {返回地址 (低4字节)};
+\node[byte, above of=f] (g) {返回地址 (高4字节)};
+\node[emptybyte, above of=g] (empty2) {高地址（向上增长）};
+
+\draw[red, <-, thick] (d.south east) -- ++(1.5,0) node[right, red, font=\ttfamily] {\&main = rbp (rsp)};
+\draw[red, <-, thick] (f.south east) -- ++(1.5,0) node[right, red, font=\ttfamily] {\&return = rbp+8};
+\draw[<-,thick] (a.south east) -- ++(1.5,0) node[right, font=\ttfamily] {\&a = rbp-12};
+\draw[<-,thick] (b.south east) -- ++(1.5,0) node[right, font=\ttfamily] {\&b = rbp-8};
+\draw[<-,thick] (c.south east) -- ++(1.5,0) node[right, font=\ttfamily] {\&c = rbp-4};
+
+\draw[decorate, decoration={brace, mirror, amplitude=10pt}, thick, blue!70!black]
+    (c.north west) -- (a.south west)
+    node[midway, left=14pt, blue!70!black, font=\bfseries] {main占用的局部变量\\（不是栈帧）};
+
+\end{tikzpicture}
+
+\end{document}
+

@@ -1,0 +1,686 @@
+\subsection{顺序表}
+
+顺序表指的是在内存中连续、线性存储的元素集合。下一个元素的地址一定是上一个元素的地址加上等于元素大小的偏移量。
+
+这两个容器，我们在C++基础中已经简要的介绍了：
+\begin{itemize}
+    \item \verb|std::array<T, N>| 是固定大小为 \verb|N| 的数组，且固定在栈上分配内存。它的大小在编译时就已经确定，不能动态改变。
+    \item \verb|std::vector<T>| 是动态大小的数组，大小可以随时扩容（但一般不会缩容），它的内存分配在堆上进行。它的大小可以在运行时动态改变。
+\end{itemize}
+接下来我们将以 \verb|std::vector<int> vec| 为例。
+
+\verb|std::vector| 的构造方法，最常见的有四种：
+\begin{minted}{cpp}
+    std::vector<int> vec1; // 默认构造函数，创建一个空的 vector
+    std::vector<int> vec2(10); // 创建一个大小为 10 的 vector，元素默认初始化为 0
+    std::vector<int> vec3(10, 5); // 创建一个大小为 10 的 vector，并将所有元素初始化为 5
+    std::vector<int> vec4 = {1, 2, 3, 4, 5}; // 直接从列表初始化
+\end{minted}
+
+顺序表最基础的几个操作的复杂度包括：
+\begin{itemize}
+    \item 访问指定索引的元素所用的时间复杂度为 $O(1)$。这是显然的，只需要一次计算就可以得到对应元素的地址。对应的算法是 \verb|vec.at(i)| 或者 \verb|vec[i]|。建议使用 \verb|vec.at(i)|，因为它会进行边界检查，如果索引越界，会抛出异常，而后者不会进行边界检查，可能会导致未定义行为。
+    \item 在顺序表的末尾添加一个元素所用的时间复杂度为 $O(1)$（不考虑扩容）。如果添加这个元素引发了扩容，那么时间复杂度为 $O(n)$，其中 $n$ 是当前顺序表的大小。因为需要分配一块新的内存，并将原有元素复制到新内存中。对应的算法是 \verb|vec.push_back(x)| 和 \verb|vec.emplace_back(x)|：前者会将一个“已经构造好”的 \verb|x| 添加到顺序表的末尾；后者会把 \verb|x| 视为构造 \verb|T| 的参数，直接在顺序表的末尾构造一个 \verb|T| 对象。在已有对象时，两者性能差不太多；在需要构造时，后者更快，因为前者需要构造和移动两步操作。
+    \item 在顺序表的末尾删除一个元素所用的时间复杂度为 $O(1)$。对应的算法是 \verb|vec.pop_back()|。
+    \item 在顺序表的中间或开头插入或删除一个元素，所用的时间复杂度为$O(n)$，其中 $n$ 是当前顺序表的大小。因为需要移动后续的元素以腾出空间或填补空缺。对应的算法是 \verb|vec.insert(it, x)| 和 \verb|vec.erase(it)|，其中 \verb|it| 是一个迭代器，指向要插入或删除的位置。
+\end{itemize}
+
+什么时候用顺序表？实际上大多数情况用顺序表都是没有问题的，除非：
+\begin{itemize}
+    \item 频繁的在中间插入删除；
+    \item 需要其他的特殊功能，如双端队列在头部的插删、优先队列最大（小）值始终在队首等。
+\end{itemize}
+
+我们将以顺序表为例，介绍最常用的一些算法。其他的容器，也有类似的算法。对于适用的算法，我们不会再在之后的章节重复介绍。
+
+\paragraph{本身的性质} 用以下操作可以获取或更改顺序表的性质，它们都是 \verb|std::vector| 的成员函数：
+\begin{itemize}
+    \item \verb|vec.size()| 返回顺序表的大小，即当前存储的元素个数；
+    \item \verb|vec.capacity()| 返回顺序表的容量，即当前分配的内存可以容纳的元素个数；
+    \item \verb|vec.empty()| 返回顺序表是否为空；
+    \item \verb|vec.resize(n)| 改变顺序表的大小为 \verb|n|，如果 \verb|n| 大于当前大小，则新元素默认初始化为 0；如果 \verb|n| 小于当前大小，则多余的元素被删除；
+    \item \verb|vec.reserve(n)| 改变顺序表的容量为 \verb|n|，如果 \verb|n| 大于当前容量，则分配新的内存；如果 \verb|n| 小于当前容量，则不做任何操作；
+    \item \verb|vec.clear()| 清空顺序表的所有元素，但不改变容量；
+    \item \verb|vec.shrink_to_fit()| 将顺序表的容量缩小到当前大小，以节省内存。一般不使用这个，而是在表的内存利用率小于一半时，将表的容量缩小为当前大小的一半，保证内存利用率略大于一半但又不会频繁扩容。
+\end{itemize}
+
+\paragraph{检查} 我们经常会需要检查某容器内的某个或全部元素是否具有某种性质。以判断全部数值都为奇数为例，以前的写法可能是这样的：
+\begin{minted}{cpp}
+bool is_all_even(const std::vector<int>& vec) {
+    for (const auto& x : vec) {
+        if (x % 2 != 0) return false;
+    }
+    return true;
+}
+\end{minted}
+在有了STL算法之后，我们可以用更简洁的写法：
+\begin{minted}{cpp}
+bool is_all_even(const std::vector<int>& vec) {
+    return std::all_of(vec.begin(), vec.end(), [](int x) { return x % 2 == 0; });
+    // return std::ranges::all_of(vec, [](int x) { return x % 2 == 0; }); // C++20 约束算法
+}
+\end{minted}
+这里的 \verb|std::all_of| 是一个算法，它接受三个参数：一个迭代器范围（起始和结束），以及一个谓词（一个返回布尔值的函数或lambda表达式）。它会对范围内的每个元素应用谓词，如果所有元素都满足谓词，则返回 \verb|true|，否则返回 \verb|false|。很多STL算法都符合这个特征：这个迭代器范围是左闭又开区间，即包含起始迭代器指向的元素，但不包含结束迭代器指向的元素。这个迭代器范围也可以不是全部元素，而是一个子范围。比如说，如果我们只想在 \verb|vec[2]| 到 \verb|vec[5]| 之间检查是否符合这个标准，可以这样写：
+\begin{minted}{cpp}
+bool is_all_even(const std::vector<int>& vec, int x) {
+    return std::all_of(vec.begin() + 2, vec.begin() + 6, [](int x) { return x % 2 == 0; });
+}
+\end{minted}
+
+而约束算法就不需要指定迭代器范围了，它会自动使用容器的全部元素作为范围。如果想要指定范围，那需要结合 \verb|std::ranges::subrange| 或者 \verb|std::views::drop|、\verb|std::views::take| 等视图来实现：
+\begin{minted}{cpp}
+bool is_all_even(const std::vector<int>& vec, int x) {
+    auto subrange = std::ranges::subrange(vec.begin() + 2, vec.begin() + 6);
+    return std::ranges::all_of(subrange, [](int x) { return x % 2 == 0; }) != subrange.end();
+}
+bool is_all_even2(const std::vector<int>& vec, int x) {
+    return std::ranges::all_of(
+        vec | std::views::drop(2) 
+            | std::views::take(4), 
+        [](int x) { return x % 2 == 0; });
+} // drop(2) 表示跳过前两个元素，take(4) 表示取接下来的四个元素
+\end{minted}
+
+之后的算法，我们不再提及以上取子区间或子视图的写法，都按照整个容器来处理，读者可以自行指定范围。此后也不会再提及约束算法的写法，读者可以自行模仿上述代码的实现。
+
+与之类似的还有 \verb|std::any_of|（至少一个元素满足谓词）、\verb|std::none_of|（没有元素满足谓词）等。
+
+\paragraph{复制和移除操作} 将一个容器复制到另一个容器中，可以使用 \verb|std::copy| 算法：
+\begin{minted}{cpp}
+std::vector<int> vec1 = {1, 2, 3, 4, 5};
+std::vector<int> vec2(vec1.size()); // 创建一个大小相同的容器
+std::copy(vec1.begin(), vec1.end(), vec2.begin()); // 将 vec1 的元素复制到 vec2
+// std::copy_n(vec1.begin(), 3, vec2.begin()); // 复制前3个元素
+// std::copy_if(vec1.begin(), vec1.end(), vec2.begin(), [](int x) { return x % 2 == 0; }); // 复制所有偶数元素
+\end{minted}
+这一招可以用于快速打印数组，因为即使容器并不相同也可以直接复制：
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5};
+std::copy(vec.begin(), vec.end(), std::ostream_iterator<int>(std::cout, " ")); // 输出 1 2 3 4 5
+\end{minted}
+\verb|std::ostream_iterator<int>| 是一个输出流的迭代器，它会将元素输出到指定的输出流（这里是 \verb|std::cout|），并在每个元素后面添加一个指定的分隔符（这里是空格）。这样可以方便的将容器中的元素输出到控制台或文件中。
+
+将一个容器中的元素移除，可以使用 \verb|std::remove| 算法：
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5};
+auto new_end = std::remove(vec.begin(), vec.end(), 3); // 移除所有等于3的元素，但不会真的移除，而是将后面的元素前移，返回新的逻辑结尾迭代器
+std::println("{}", vec); // 输出{1, 2, 4, 5, 5}，3被覆盖了，但最后一个元素仍然存在。std::println 是C++23
+std::erase(new_end, vec.end()); // 真正移除逻辑结尾之后的元素
+std::println("{}", vec); // 输出{1, 2, 4, 5}，3被真正移除了
+\end{minted}
+因此，\verb|std::remove| 经常会和 \verb|std::erase| 一起使用，形成“擦除-移除惯用法”（Erase-Remove Idiom）。它的时间复杂度为 $O(n)$，其中 $n$ 是容器的大小。
+
+此外，还可以使用 \verb|remove_if| 来移除满足某个条件的元素：
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5};
+std::remove_if(vec.begin(), vec.end(), [](int x) { return x % 2 == 0; }); // 移除所有偶数元素
+std::erase(new_end, vec.end()); // 真正移除逻辑结尾之后的元素
+std::println("{}", vec); // 输出{1, 3, 5}，所有偶数被移除了
+\end{minted}
+
+\begin{remark}{迭代器失效}
+    注意！如果要移除满足某条件的元素，绝对不可以这么写：
+    \begin{minted}{cpp}
+    for (auto it = vec.begin(); it != vec.end(); ++it) 
+        if (*it % 2 == 0) 
+            vec.erase(it); // 错误！erase 会使迭代器失效
+    \end{minted}
+    这是因为，不论是 \verb|std::remove| 还是 \verb|vec.erase(it)|，都会使迭代器失效。迭代器失效指的是迭代器不能再正确的指向容器中的元素，这可能会导致未定义行为。以下操作都可能会导致迭代器失效：
+    \begin{itemize}
+        \item 插入元素，尤其是在中间或开头插入元素；
+        \item 删除元素，尤其是在中间或开头删除元素；
+        \item 容器扩容或缩容；
+        \item 清空元素。
+    \end{itemize}
+    因此，在使用迭代器时，一定要注意它们的有效性，避免在迭代器失效后继续使用它们。
+\end{remark}
+
+\begin{remark}{bool数组}
+    \verb|std::vector<bool>| 的实现非常特殊。它实际上是一个 \verb|bitset|，每个元素只占用一位，而不是一个字节。这种实现方式可以节省内存，但也带来了一些问题：
+    \begin{itemize}
+        \item 不能直接获取元素的引用，因为每个元素只占用一位，无法返回一个可以修改的引用，单个位也没有地址
+        \item 不能直接使用迭代器，因为迭代器需要返回一个可以修改的引用，而 \verb|std::vector<bool>| 的迭代器返回的是一个代理对象，不能直接修改元素；
+        \item 线程不安全，位压缩导致读写冲突可能性极高。
+        \item 排序、查找等算法能用，但是缓慢。
+    \end{itemize}
+    因此，在空间允许的情况下，可以使用其他的数组来代替这个实现。
+\end{remark}
+
+
+\paragraph{查找操作} 在查找某容器中是否存在某元素时，朴素的写法是：
+\begin{minted}{cpp}
+bool contains(const std::vector<int>& vec, int x) {
+    for (const auto& y : vec) {
+        if (y == x) return true;
+    }
+    return false;
+}
+\end{minted}
+为了简化，可以使用 \verb|std::find| 算法：
+\begin{minted}{cpp}
+bool contains(const std::vector<int>& vec, int x) {
+    return std::find(vec.begin(), vec.end(), x) != vec.end();
+    // return std::ranges::find(vec, x) != vec.end(); // C++20 约束算法
+}
+\end{minted}
+这些算法都会寻找第一个满足特定条件的元素。
+
+如果要寻找最后一个，使用 \verb|std::find_last| 。如果要查找所有（并返回一个新的序列），使用 \verb|copy_if|：
+\begin{minted}{cpp}
+const std::vector<int> vec = {1, 2, 3, 4, 5};
+std::vector<int> result;
+std::copy_if(vec.begin(), vec.end(), std::back_inserter(result), [](int x) { return x % 2 == 0; });
+// result 现在包含 {2, 4}
+\end{minted}
+上文中的 \verb|std::back_inserter(result)| 是一个迭代器适配器，它会将元素插入到 \verb|result| 的末尾。它的作用是将算法的输出直接写入到一个容器中，而不需要手动管理容器的大小和位置。
+
+如果要查找的是一个序列而不是单个元素，可以使用 \verb|std::search|：
+\begin{minted}{cpp}
+const std::vector<int> vec = {1, 2, 3, 4, 5};
+const std::vector<int> subseq = {3, 4}; 
+bool found = (std::search(vec.begin(), vec.end(), subseq.begin(), subseq.end()) != vec.end());
+\end{minted}
+当这个序列是同一元素重复$n$次时，可以使用 \verb|std::search_n|：
+\begin{minted}{cpp}
+const std::vector<int> vec = {1, 2, 3, 3, 3, 4, 5};
+int n = 3;
+bool found = (std::search_n(vec.begin(), vec.end(), n, 3) != vec.end());
+\end{minted}
+当$n=2$时，可以使用 \verb|std::adjacent_find|，它也可以用来查找相邻的两个元素是否满足某种条件：
+\begin{minted}{cpp}
+const std::vector<int> vec = {1, 2, 3, 3, 4, 5};
+bool found = (std::adjacent_find(vec.begin(), vec.end(), 3) != vec.end());
+\end{minted}
+
+此外，还可以查找一些特殊数值，比如最大值 \verb|std::max_element|、最小值 \verb|std::min_element|、最大最小值 \verb|std::minmax_element| 、第$n$大的数值 \verb|std::nth_element| 等。
+\begin{minted}{cpp}
+const std::vector<int> vec = {1, 2, 3, 4, 5};
+int max = *std::max_element(vec.begin(), vec.end()); // max = 5
+int min = *std::min_element(vec.begin(), vec.end()); // min = 1
+auto [min_it, max_it] = std::minmax_element(vec.begin(), vec.end()); // min_it 和 max_it 分别是指向最小值和最大值的迭代器
+
+std::nth_element(vec.begin(), vec.begin() + 1, vec.end()); // 找第(1+1)大的元素，即第二大的元素
+int second_largest = vec.at(1); // second_largest = 4
+\end{minted}
+上述代码中的 \verb|std::nth_element| 算法会重新排列容器中的元素，使得第$n$大的元素位于指定位置，并且该位置左边的元素都不大于它，右边的元素都不小于它。注意，这个算法并不会完全排序容器，只是保证了第$n$大的元素的位置。
+
+上述代码中的 \verb|auto [min_it, max_it]| 是“结构化绑定”，它允许我们将 \verb|std::pair| 解包为两个独立的变量。这个结构化绑定也可以用于 \verb|std::tuple|。
+
+特别的，如果数组是有序的，可以使用二分查找算法 \verb|std::binary_search|、\verb|std::lower_bound|、\verb|std::upper_bound| 等，它们的时间复杂度为 $O(\log n)$，比线性查找的 $O(n)$ 更高效。
+
+\paragraph{排序操作} 
+
+排序操作很简单，分两种：不改变相同元素相对顺序的排序 \verb|std::stable_sort| 和改变相同元素相对顺序的排序 \verb|std::sort|。它们的时间复杂度都是 $O(n \log n)$，其中 $n$ 是容器的大小。排序操作可以使用默认的比较函数（小于号），也可以自定义比较函数。
+\begin{minted}{cpp}
+std::vector<int> vec = {5, 2, 3, 1, 4};
+std::sort(vec.begin(), vec.end()); // 升序排序
+std::sort(vec.begin(), vec.end(), std::greater<int>()); // 降序排序
+std::stable_sort(vec.begin(), vec.end(), [](int a, int b) { return a % 2 < b % 2; }); // 按奇偶性排序，
+// 其中奇数在前，偶数在后，相同奇偶性的元素保持相对顺序不变
+\end{minted}
+
+检查一个数组是否按升序排列，可以使用 \verb|std::is_sorted| 和 \verb|std::is_sorted_until|。
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5};
+bool sorted = std::is_sorted(vec.begin(), vec.end()); // sorted = true
+std::vector<int> vec2 = {1, 3, 2, 4, 5};
+bool sorted2 = std::is_sorted(vec2.begin(), vec2.end()); // sorted2 = false
+auto it = std::is_sorted_until(vec2.begin(), vec2.end()); // it 指向第一个不满足有序的元素，即 2
+std::vector<int> vec3 = {5, 4, 3, 2, 1};
+bool sorted3 = std::is_sorted(vec3.begin(), vec3.end(), std::greater<int>()); // sorted3 = true，按降序排列
+\end{minted}
+
+\paragraph{数值操作和计算} STL还提供了一些数值操作的方法。用的较多的有四个：生成序列、计数、累加、“求导”（差分）。
+
+生成序列，顾名思义，就是生成一个数值序列。可以使用 \verb|std::iota| 算法，它会将一个范围内的元素赋值为从指定起始值开始的连续整数。
+\begin{minted}{cpp}
+std::vector<int> vec(5);
+std::iota(vec.begin(), vec.end(), 1); // vec 现在包含 {1, 2, 3, 4, 5}
+\end{minted}
+
+计数也是很简单的，可以使用 \verb|std::count| 算法，它会计算一个范围内等于指定值的元素个数；也可以使用 \verb|std::count_if| 算法，它会计算一个范围内满足指定条件的元素个数。
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5, 2, 3, 4};
+int count_2 = std::count(vec.begin(), vec.end(), 2); // count_2 = 2
+int count_even = std::count_if(vec.begin(), vec.end(), [](int x) { return x % 2 == 0; }); // count_even = 4
+\end{minted}
+
+累加，包含“部分和”和“总和”。可以使用 \verb|std::partial_sum| 算法，它会计算一个范围内的部分和，并将结果存储在另一个范围中；也可以使用 \verb|std::accumulate| 算法，它会计算一个范围内的总和，并返回结果。
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 3, 4, 5};
+std::vector<int> partial_sum(vec.size());
+std::partial_sum(vec.begin(), vec.end(), partial_sum.begin()); // partial_sum 现在包含 {1, 3, 6, 10, 15}
+int total_sum = std::accumulate(vec.begin(), vec.end(), 0); // total_sum = 15
+\end{minted}
+
+求导（差分），用于计算一个序列的相邻元素之差。可以使用 \verb|std::adjacent_difference| 算法，它会计算一个范围内的相邻元素之差，并将结果存储在另一个范围中。
+\begin{minted}{cpp}
+std::vector<int> vec = {1, 2, 4, 7, 11};
+std::vector<int> diff(vec.size());
+std::adjacent_difference(vec.begin(), vec.end(), diff.begin()); // diff 现在包含 {1, 1, 2, 3, 4}
+\end{minted}
+
+
+\begin{example}{股票买卖}{}
+    给定一数组，表示一只股票在不同时间的价格。你初始不持有股票，且在股市收盘时必须卖出所有股票。你至多同时持有1股股票，并可以买入/卖出至多$n$次。请设计一个算法，计算你能获得的最大利润。鉴于不同的股票管理规则，你应该设计两种算法：
+    \begin{itemize}
+        \item $n=1$，即只能买卖一次；
+        \item $n=\infty$，即可以买卖任意次。
+    \end{itemize}
+    请使用STL算法，使代码简洁。
+
+    \begin{description}
+        \item[输入] 一个整数数组，表示股票在不同时间的价格。
+        \item[输出] 一个整数，表示能获得的最大利润。如果没有任何交易可以获得利润，返回0。
+    \end{description}
+    \tcblower
+
+    先分析“只交易一次”的情况。假设我们希望在第$i$天卖出股票，那么我们必须在第$i$天之前的某一天买入股票。为了最大化利润，我们应该在第$i$天之前选择价格最低的一天买入股票。于是，我们会得到一个新的数组：
+    \begin{minted}{cpp}
+    std::vector<int> prices = {7, 1, 5, 3, 6, 4}; // 假设的输入
+    std::vector<int> profits(prices.size());
+    for (std::size_t i = 0; i < prices.size(); ++i) {
+        int min_price = *std::min_element(prices.begin(), prices.begin() + i + 1);
+        profits.at(i) = prices.at(i) - min_price;
+    }
+    int max_profit = *std::max_element(profits.begin(), profits.end());
+    \end{minted}
+    现在试着优化一下这些代码。我们发现，每一次计算 \verb|std::min_element| 都重复遍历了数组。我们可以考虑一个优化：我们已知一个数组的最小值，如果在这个数组末端添加一个元素，那么添加后的数组的最小值要么是原数组的最小值，要么是新添加的元素。于是我们可以用一个变量来记录当前的最小值，以避免重复计算。同理，也可以用一个变量以类似的方式来记录当前的最大利润。于是我们可以得到一个更高效的算法：
+    \begin{minted}{cpp}
+    std::vector<int> prices = {7, 1, 5, 3, 6, 4}; // 假设的输入
+    int min_price = std::numeric_limits<int>::max(); // 也可以写成一个极大的数，这里是取了int的上极限
+    int max_profit = 0;
+    for (const auto& price : prices) {
+        min_price = std::min(min_price, price);
+        max_profit = std::max(max_profit, price - min_price);
+    }
+    \end{minted}
+    最后返回 \verb|max_profit| 即可。
+
+    现在分析“可以交易任意多次”的情况。这个应当很好理解，我们可以每一天都考虑是否买入或卖出股票，只要今天的价格低于明天的价格，我们就买入股票并在明天卖出；否则，我们就不进行任何操作。于是我们可以得到一个简单的算法：
+    \begin{minted}{cpp}
+    std::vector<int> prices = {7, 1, 5, 3, 6, 4}; // 假设的输入
+    int max_profit = 0;
+    for (std::size_t i = 1; i < prices.size(); ++i) 
+        if (prices.at(i) > prices.at(i - 1)) 
+            max_profit += prices.at(i) - prices.at(i - 1);
+    \end{minted}
+    最后返回 \verb|max_profit| 即可。
+\end{example}
+
+\subsection{双端队列和栈、队列}
+
+\paragraph{双端队列}
+
+双端队列是顺序表的另一个实现。不同于 \verb|std::vector|，它允许在两端进行高效的插入和删除操作。双端队列的时间复杂度为：
+\begin{itemize}
+    \item 访问指定索引的元素所用的时间复杂度为 $O(1)$，和之前一样，因为它也是顺序表；
+    \item 在双端队列的两端添加或删除一个元素所用的时间复杂度为 $O(1)$。对应的算法是 \verb|dq.push_front(x)|、\verb|dq.push_back(x)|、\verb|dq.pop_front()|、\verb|dq.pop_back()|，也有 \verb|emplace_front(x)|、\verb|emplace_back(x)|，此处它们的作用类似 \verb|std::vector| 的同名方法。
+    \item 在双端队列的中间插入或删除一个元素所用的时间复杂度为 $O(n)$，和之前一样，因为它仍然需要移动后续的元素。
+    \item 一般情况下，使用双端队列时，我们只会在两端进行操作，而不会在中间进行操作。访问两端的元素需要的时间复杂度是 $O(1)$，对应的算法是 \verb|dq.front()| 和 \verb|dq.back()|。
+\end{itemize}
+
+双端队列由于是顺序表，因此它也支持迭代器和STL算法。它的迭代器是随机访问迭代器，因此可以使用所有的STL算法。
+
+其实双端队列的操作很“骚”。我们有定理：不存在一种数据结构，它既支持基于物理内存相对位置的$O(1)$随机访问，又支持在中间$O(1)$的插入或删除元素。但是，双端队列却可以在两端$O(1)$的插入或删除元素，并且支持基于物理内存相对位置的$O(1)$随机访问，这是怎么做出来的？
+
+这是因为，双端队列并不是完好的顺序表。其核心包括两部分：
+\begin{description}
+    \item[缓冲区] 实际存放元素的小顺序表，每个缓冲区大小固定，比如8个\verb|int|。
+    \item[中控器] 一个指针数组，每个指针指向一个缓冲区。中控器的大小是动态变化的，当缓冲区满了时，中控器会扩容；当缓冲区空了时，中控器会缩容。
+\end{description}
+双端队列维护两个迭代器（指针）：一个指头（第一个有效缓冲区的起始）、一个指尾（最后一个有效缓冲区的末尾）。
+
+当我们试图基于下标访问的时候，内部做了两次计算：先算出所在缓冲区的索引（一次除法），再算出在缓冲区内的偏移量（取模），于是就可以在$O(1)$的时间内访问到元素了。当在两端插入或删除元素时，只需要移动那两个指着头和尾的指针即可；块要是满了就直接加新的块，总体时间复杂度非常低。但一旦试图在中间插入或删除，那就完蛋了：需要移动大量的元素，时间复杂度会退化到$O(n)$。
+
+也正因此，双端队列对比顺序表的问题在于其常数较大，因为块不连续，对缓存不友好。
+
+\paragraph{栈}
+
+虽然双端队列足够好用，但对于大多数编程任务而言，我们更关心抽象出来的两个数据结构：栈和队列。
+
+我们在讲函数的栈帧时就提到过了栈。这里的栈和内存上的“栈”不是一个概念，虽然它们的行为很像：栈都是后进先出的数据结构，可以想象为一个极长但极窄的管道，数据只能从一端进出。也正因此，作为数据结构的栈只能访问一端：
+\begin{itemize}
+    \item \verb|stack.push(x)|：将元素 \verb|x| 压入栈顶，也有类似的 \verb|emplace(x)|，它的作用是直接在栈顶构造一个 \verb|T| 对象；
+    \item \verb|stack.pop()|：弹出栈顶元素；
+    \item \verb|stack.top()|：访问栈顶元素，但不弹出。
+\end{itemize}
+这些的时间复杂度都是常数。栈在编程上非常常用，我们将以两个题目来说明。
+
+\begin{example}{括号配对}{}
+    给你一个字符串，只包含六种字符：\verb|(|、\verb|)|、\verb|[|、\verb|]|、\verb|{|、\verb|}|。请你判断所有括号是否被正确闭合。一个括号闭合的条件是：请你判断所有括号是否被正确闭合。一个括号闭合的条件是：
+    \begin{itemize}
+        \item 每个左括号必须有一个对应的右括号；
+        \item 这对括号中所有的括号都在该括号内闭合。
+    \end{itemize}
+    例如 \verb|()|、\verb|()[]{}| 和 \verb|{[()]}| 都是闭合的，而 \verb|(]|、\verb|([)]| 和 \verb|{[}| 都不是闭合的。
+    \begin{description}
+        \item[输入] 一个字符串，只包含六种字符：\verb|(|、\verb|)|、\verb|[|、\verb|]|、\verb|{|、\verb|}|。
+        \item[输出] 如果所有括号都闭合，返回 \verb|true|；否则返回 \verb|false|。
+    \end{description}
+    \tcblower
+    看题目，观察到 \verb|{[()]}| 中， \verb|()| 是最内层的括号，它们必须先闭合，才能闭合外层的 \verb|[]|，最后才能闭合最外层的 \verb|{}|。这说明，\textbf{最后压进去的括号必须最先闭合}，这正是栈的特性。因此，我们可以使用一个栈来解决这个问题。
+    
+    接下来的思维就很直接了。遍历字符串中的每个字符，如果是左括号，就将其压入栈中；如果是右括号，就检查栈顶的左括号是否与之匹配，如果匹配，就弹出栈顶的左括号；如果不匹配，或者栈为空，就返回 \verb|false|。最后，如果栈为空，说明所有括号都闭合，返回 \verb|true|；否则返回 \verb|false|。
+    \begin{minted}{cpp}
+    bool isValid(const std::string& s) {
+        std::stack<char> stk;
+        for (const auto& c : s)
+            if (c == '(' || c == '[' || c == '{') {
+                stk.push(c);
+            else {
+                if (stk.empty()) return false;
+                char top = stk.top();
+                if ((c == ')' && top != '(') ||
+                    (c == ']' && top != '[') ||
+                    (c == '}' && top != '{')) {
+                    return false;
+                }
+                stk.pop();
+            }
+        }
+        return stk.empty();
+    }
+    \end{minted}
+\end{example}
+
+\begin{example}{逆波兰表达式}{}
+    逆波兰表达式（Reverse Polish Notation，RPN）是一种算术表达式的表示方法，它将运算符放在操作数的后面。例如，表达式 \verb|3 + 4| 在逆波兰表示法中写作 \verb|3 4 +|，而表达式 \verb|(1 + 2) * (3 + 4)| 在逆波兰表示法中写作 \verb|1 2 + 3 4 + *|。请你计算给定的逆波兰表达式的值。有效的运算符包括 \verb|+|、\verb|-|、\verb|*| 和 \verb|/|。每个操作数可以是整数或另一个逆波兰表达式。
+    \begin{description}
+        \item[输入] 一个字符串数组，表示一个逆波兰表达式。保证给出的表达式合法。
+        \item[输出] 一个整数，表示逆波兰表达式的值。
+    \end{description}
+    \tcblower
+    这个题目的思维和上一题类似：当一个运算符出现时，它必然要作用于它前面的两个操作数，而这两个操作数一定是最后被压进栈的操作数。因此，\textbf{最后压进去的操作数必须最先被运算}，这正是栈的特性。
+    
+    所以，遍历数组中的每个元素，如果是操作数，就将其压入栈中；如果是运算符，就从栈中弹出两个操作数，进行相应的运算，然后将结果压入栈中。最后，栈中只剩下一个元素，即为逆波兰表达式的值。
+    
+    以下是实现代码：
+    \begin{minted}{cpp}
+    int evalRPN(const std::vector<std::string>& tokens) {
+        std::stack<int> stk;
+        for (const auto& token : tokens) {
+            if (token == "+" || token == "-" || token == "*" || token == "/") {
+                int b = stk.top(); stk.pop();
+                int a = stk.top(); stk.pop();
+                if (token == "+") stk.push(a + b);
+                else if (token == "-") stk.push(a - b);
+                else if (token == "*") stk.push(a * b);
+                else if (token == "/") stk.push(a / b); // 注意整数除法
+            } else {
+                stk.push(std::stoi(token)); // 将字符串转换为整数
+            }
+        }
+        return stk.top();
+    }
+    \end{minted}
+\end{example}
+
+此外，栈还用于手动递归、防止爆栈等。
+
+\paragraph{队列}
+
+队列是一种先进先出的数据结构，可以想象为一个极长但极窄的管道，数据只能从一端进，从另一端出。队列的操作包括：
+\begin{itemize}
+    \item \verb|queue.push(x)|：将元素 \verb|x| 放入队列的末尾；
+    \item \verb|queue.pop()|：移除队列的头部元素；
+    \item \verb|queue.front()|：访问队列的头部元素，但不移除；
+    \item \verb|queue.back()|：访问队列的末尾元素，但不移除。
+\end{itemize}
+
+队列在算法中也有相当的地位。我们将以两个题目来说明。
+
+\begin{example}{缓存}{}
+    现代CPU的运算速度显著高于它访问内存的速度，所以如果频繁访问内存，程序性能会大幅下降。为了提高性能，CPU通常会使用缓存（Cache）来存储最近访问过的数据，以便在下一次访问时能够更快地获取数据。缓存的容量有限，所以当缓存满了之后，就需要淘汰一些数据。某型号CPU的缓存采用如下策略管理：当缓存满了、且要访问的数据不在缓存中时，触发缓存不命中：将最早进入缓存的数据移除，然后将新数据放入缓存。
+
+    现在请模拟这个过程：给你一些数，表示一些内存地址；再给你一个整数，表示缓存的容量。请你计算在访问这些内存地址时，缓存不命中多少次？
+
+    \begin{description}
+        \item[输入] 2行。第一行是一个整数数组，表示一些内存地址；第二行是一个整数，表示缓存的容量。
+        \item[输出] 一个整数，表示缓存不命中的次数。
+    \end{description}
+    \tcblower
+    这个缓存的行为显然就是一个队列。所以直接把队列搬上来就行。
+
+    \begin{minted}{cpp}
+    int cacheMisses(const std::vector<int>& addresses, int capacity) {
+        std::queue<int> cache;
+        std::unordered_set<int> cache_set; // 用于快速判断缓存中是否存在，只需要知道这个东西查找、插入、删除的时间复杂度都是 O(1) 即可，具体讲解见后续章节
+        int misses = 0;
+        for (const auto& addr : addresses) {
+            if (cache_set.find(addr) == cache_set.end()) { // 缓存不命中
+                ++misses;
+                if (cache.size() == capacity) { // 缓存满了
+                    int old_addr = cache.front();
+                    cache.pop();
+                    cache_set.erase(old_addr);
+                }
+                cache.push(addr);
+                cache_set.insert(addr);
+            }
+        }
+        return misses;
+    }
+    \end{minted}
+\end{example}
+
+\begin{example}{约瑟夫问题}{}
+    有一群人围成一圈报数，从第一个人开始报数，报到第 $m$ 个人时，这个人出列，然后从下一个人开始重新报数。这个过程一直持续下去，直到所有人都出列。请输出一个列表，表示每个人出列的顺序。
+    \begin{description}
+        \item[输入] 两个整数，分别表示总人数 $n$ 和报数的上限 $m$。
+        \item[输出] 一个整数数组，表示每个人出列的顺序。
+    \end{description}
+    \tcblower
+    这个问题可以用队列来模拟。我们将所有人编号为 $0$ 到 $n-1$，然后将他们依次放入队列中。每次报数时，我们将队列的头部元素移到队列的末尾，直到报到第 $m$ 个人时，将这个人出列（即从队列中移除）。重复这个过程，直到队列为空。
+    
+    \begin{minted}{cpp}
+    std::vector<int> josephus(int n, int m) {
+        std::queue<int> q;
+        for (int i = 0; i < n; ++i) q.push(i);
+        std::vector<int> result;
+        while (!q.empty()) {
+            for (int i = 1; i < m; ++i) {
+                q.push(q.front());
+                q.pop();
+            }
+            result.push_back(q.front());
+            q.pop();
+        }
+        return result;
+    }
+    \end{minted}
+    当然，这个题目不使用队列也是可以做的：
+    \begin{minted}{cpp}
+    std::vector<int> josephus(int n, int m) {
+        std::vector<int> people(n);
+        std::iota(people.begin(), people.end(), 0); // 初始化编号为 0 到 n-1
+        std::vector<int> result;
+        int index = 0;
+        while (!people.empty()) {
+            index = (index + m - 1) % people.size(); // 找到第 m 个人的索引
+            result.push_back(people[index]);
+            people.erase(people.begin() + index); // 移除这个人
+        }
+        return result;
+    }
+    \end{minted}
+\end{example}
+
+\subsection{字符串}
+
+字符串在C++中也是顺序表，但有点区别。
+
+字符串使用了SSO优化：当字符串小时（小于15个字符），字符串会在栈上分配内存；当字符串大时（大于等于15个字符），字符串会在堆上分配内存。
+
+字符串的行为和 \verb|std::vector| 类似，但有一些特殊的成员函数，比如 \verb|substr| 可以切分子串、\verb|find| 可以查找子串、\verb|replace| 可以替换子串、\verb|insert| 可以插入子串、\verb|erase| 可以删除子串等。它们的时间复杂度和 \verb|std::vector| 类似，其他方法略。
+
+\subsection{链表}
+
+链表也是一种线性结构。它不要求元素在内存中是连续的，而是在每一个元素上维护指向下一个元素的指针（和指向前一个元素的指针），以此来保证元素之间的逻辑顺序。根据是否维护指向前一个元素的指针，链表分为单链表 \verb|std::forward_list| 和双链表 \verb|std::list|。它们的时间复杂度为：
+\begin{itemize}
+    \item 访问指定索引的元素所用的时间复杂度为 $O(n)$，因为链表不支持随机访问，只能从头开始遍历。对应的操作是 \verb|lst.at(i)|。
+    \item 在链表的指定索引插入、删除一个元素所用的时间复杂度是$O(n)$。插入删除元素这一项本身只需要更改两个指针的指向，时间复杂度是 $O(1)$，但是由于链表不支持随机访问，所以需要先遍历到指定索引的位置，时间复杂度是 $O(n)$。对双链表，操作是 \verb|lst.insert(it, x)|、\verb|lst.erase(it)|，其中 \verb|it| 是一个迭代器，指向要插入或删除的位置。对单链表，则只能移除某元素之后的元素，操作是 \verb|lst.insert_after(it, x)|、\verb|lst.erase_after(it)|；在单链表头部插入元素的操作是 \verb|lst.push_front(x)|，在单链表头部删除元素的操作是 \verb|lst.pop_front()|。
+\end{itemize}
+
+由于链表是线性访问迭代器，所以不支持随机访问迭代器，包括所有的排序算法和基于排序的算法（例如 \verb|std::nth_element|），以及二分查找的算法。但它们有自己的优化算法，是他们的成员函数。例如 \verb|std::list::sort|、\verb|std::list::merge|、\verb|std::list::unique| 等。使用例：
+\begin{minted}{cpp}
+std::list<int> lst = {5, 2, 3, 1, 4};
+lst.sort(); // 升序排序
+std::list<int> lst2 = {3, 4, 5, 6};
+lst.merge(lst2); // 合并两个有序链表，lst 现在包含 {1, 2, 3, 4, 5, 6}，lst2 现在为空
+lst.unique(); // 移除相邻的重复元素，lst 现在包含 {1, 2, 3, 4, 5, 6}
+lst.sort(std::greater<int>()); // 降序排序，lst 现在包含 {6, 5, 4, 3, 2, 1}
+\end{minted}
+
+由于单链表的迭代器是单向的，所以部分公司面试时会要求考生手搓单链表的排序、反转等。
+\begin{example}{单链表冒泡}{}
+小王参加了一家公司的面试。这家不讲道理的公司要求小王对单链表进行\textbf{冒泡}排序，且\textbf{必须交换节点}，不能交换节点的值。小王虽然知道单链表排序的标准做法实际上是归并排序，但为了面试，他还是决定硬着头皮写冒泡排序。但他最终没能写出来，请你帮帮他吧！
+\begin{description}
+    \item[输入] 指向单链表的头节点的指针。
+    \item[输出] 指向排序后单链表的头节点的指针。
+\end{description}
+这个单链表的节点是这样的：
+\begin{minted}{cpp}
+struct ListNode {
+    int val;
+    std::unique_ptr<ListNode> next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+\end{minted}
+\tcblower
+    由于单链表的迭代器是单向的，所以我们只能从头节点开始遍历。我们可以使用两个指针，分别指向当前节点和下一个节点。如果当前节点的值大于下一个节点的值，就交换它们的位置。
+    由于我们需要交换节点，所以我们还需要一个指向当前节点的前一个节点的指针。我们可以使用一个虚拟头节点来简化边界情况的处理。虚拟头节点的值可以是任意值，它的下一个节点指向原链表的头节点。这样，我们就可以统一处理所有节点的交换，而不需要考虑头节点的特殊情况。
+    \begin{minted}{cpp}
+std::unique_ptr<ListNode> bubbleSortList(std::unique_ptr<ListNode> head) {
+    if (!head || !head->next) return head; // 空链表或只有一个节点的链表不需要排序
+    auto dummy = std::make_unique<ListNode>(0); // 创建虚拟头节点
+    dummy->next = std::move(head); // 将原链表接到虚拟头节点后面
+    bool swapped;
+    do {
+        swapped = false;
+        auto prev = dummy.get(); // 前一个节点，初始为虚拟头节点
+        auto curr = prev->next.get(); // 当前节点，初始为原链表的头节点
+        while (curr && curr->next) { // 遍历链表
+            if (curr->val > curr->next->val) { // 如果当前节点的值大于下一个节点的值，就交换它们
+                auto next = std::move(curr->next); // 保存下一个节点
+                curr->next = std::move(next->next); // 将当前节点的下一个节点指向下一个节点的下一个节点
+                next->next = std::move(prev->next); // 将下一个节点的下一个节点指向当前节点
+                prev->next = std::move(next); // 将前一个节点的下一个节点指向下一个节点
+                swapped = true; // 标记已经交换过节点
+            } else {
+                curr = curr->next.get(); // 否则，移动到下一个节点
+            }
+            prev = prev->next.get(); // 前一个节点也要移动到下一个节点
+        }
+    } while (swapped); // 如果有交换过节点，就继续遍历链表
+    return std::move(dummy->next); // 返回排序后的链表的头节点
+}
+    \end{minted}
+
+    当然，我们实际上应该知道，单链表的排序最优解是归并排序，时间复杂度为 $O(n \log n)$，也好写得多，不需要考虑单链表的前驱。假如这个题目要求的是双链表，那也简单得多了！
+
+    单链表的归并实际上应该这样：
+    \begin{minted}{cpp}
+std::unique_ptr<ListNode> mergeSortList(std::unique_ptr<ListNode> head) {
+    if (!head || !head->next) return head; // 空链表或只有一个节点的链表不需要排序
+    // 使用快慢指针找到链表的中点
+    auto slow = head.get();
+    auto fast = head.get();
+    std::unique_ptr<ListNode>* prev = nullptr; // 用于断开链表
+    while (fast && fast->next) {
+        prev = &slow->next; // 保存慢指针的前一个节点
+        slow = slow->next.get();
+        fast = fast->next->next.get();
+    }
+    // 断开链表
+    std::unique_ptr<ListNode> mid = std::move(*prev);
+    *prev = nullptr; // 断开链表
+    // 递归排序左右两部分
+    auto left = mergeSortList(std::move(head));
+    auto right = mergeSortList(std::move(mid));
+    // 合并两个有序链表
+    auto dummy = std::make_unique<ListNode>(0);
+    auto curr = dummy.get();
+    while (left && right) {
+        if (left->val < right->val) {
+            curr->next = std::move(left);
+            curr = curr->next.get();
+            left = std::move(curr->next);
+        } else {
+            curr->next = std::move(right);
+            curr = curr->next.get();
+            right = std::move(curr->next);
+        }
+    }
+    curr->next = std::move(left ? left : right);
+    return std::move(dummy->next);
+}
+    \end{minted}
+
+    双链表的冒泡排序应该这样，不需要麻烦的维护一个额外的前驱指针：
+    \begin{minted}{cpp}
+struct ListNode {
+    int val;
+    std::unique_ptr<ListNode> next; 
+    ListNode* prev; // 前驱
+    ListNode(int x) : val(x), next(nullptr), prev(nullptr) {}
+};
+
+std::unique_ptr<ListNode> bubbleSortDoublyList(std::unique_ptr<ListNode> head) {
+    if (!head || !head->next) return head; // 空链表或只有一个节点的链表不需要排序
+    bool swapped;
+    do {
+        swapped = false;
+        auto curr = head.get(); // 当前节点，初始为原链表的头节点
+        while (curr && curr->next) { // 遍历链表
+            if (curr->val > curr->next->val) { // 如果当前节点的值大于下一个节点的值，就交换它们
+                auto next = std::move(curr->next); // 保存下一个节点
+                curr->next = std::move(next->next); // 将当前节点的下一个节点指向下一个节点的下一个节点
+                if (curr->next) curr->next->prev = curr; // 更新下一个节点的前驱
+                next->next = std::move(curr); // 将下一个节点的下一个节点指向当前节点
+                next->prev = curr->prev; // 更新下一个节点的前驱
+                if (curr->prev) curr->prev->next = std::move(next); // 更新前驱的下一个节点
+                else head = std::move(next); // 如果当前节点是头节点，更新头节点
+                curr->prev = next.get(); // 更新当前节点的前驱
+                swapped = true; // 标记已经交换过节点
+            } else {
+                curr = curr->next.get(); // 否则，移动到下一个节点
+            }
+        }
+    } while (swapped); // 如果有交换过节点，就继续遍历链表
+    return std::move(head); // 返回排序后的链表的头节点
+}
+    \end{minted}
+\end{example}
+
+\begin{example}{单链表反转}{}
+    给你一个单链表的头节点，请你反转这个链表，并返回反转后的头节点。
+    \begin{description}
+        \item[输入] 指向单链表的头节点的指针。
+        \item[输出] 指向反转后单链表的头节点的指针。
+    \end{description}
+    这个单链表的节点是这样的：
+    \begin{minted}{cpp}
+struct ListNode {
+    int val;
+    std::unique_ptr<ListNode> next;
+    ListNode(int x) : val(x), next(nullptr) {}
+};
+    \end{minted}
+    \tcblower
+    非常容易想到的一个算法是：遍历一次链表，把链表的每个节点都压入栈中，然后再从栈中弹出节点，重新连接它们。这样就可以得到一个反转后的链表。时间复杂度为 $O(n)$，空间复杂度为 $O(n)$，时间复杂度已经是最优的了。但有没有“原地”反转的可能性呢？
+
+    当然有。我们可以使用三个指针，分别指向当前节点、前一个节点和下一个节点。遍历链表时，将当前节点的下一个节点指向前一个节点，然后将前一个节点和当前节点都向后移动一位。这样就可以在遍历链表的同时反转链表。时间复杂度为 $O(n)$，空间复杂度为 $O(1)$，是最优解。
+    \begin{minted}{cpp}
+std::unique_ptr<ListNode> reverseList(std::unique_ptr<ListNode> head) {
+    std::unique_ptr<ListNode> prev = nullptr; // 前一个节点，初始为 nullptr
+    while (head) { // 遍历链表
+        auto next = std::move(head->next); // 保存下一个节点
+        head->next = std::move(prev); // 将当前节点的下一个节点指向前一个节点
+        prev = std::move(head); // 将前一个节点移动到当前节点
+        head = std::move(next); // 将当前节点移动到下一个节点
+    }
+    return std::move(prev); // 返回反转后的链表的头节点
+}
+    \end{minted}
+\end{example}
