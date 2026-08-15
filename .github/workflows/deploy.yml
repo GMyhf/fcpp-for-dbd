@@ -26,10 +26,18 @@ jobs:
       - name: 安装 pandoc / TeX Live / poppler
         run: |
           sudo apt-get update
+          # --no-install-recommends keeps the install lean, so everything
+          # preamble.tex loads is listed explicitly:
+          #   biblatex        -> texlive-bibtex-extra
+          #   ctex + 字体      -> texlive-lang-chinese, fonts-fandol
+          #   tcolorbox/minted/standalone/cleveref/enumitem -> texlive-latex-extra
+          #   tikz/pgfplots   -> texlive-pictures
+          #   empheq          -> texlive-science
           sudo apt-get install -y --no-install-recommends \
             pandoc poppler-utils python3-pygments latexmk \
-            texlive-xetex texlive-latex-extra texlive-fonts-recommended \
-            texlive-lang-chinese texlive-pictures texlive-science
+            texlive-xetex texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-lang-chinese fonts-fandol \
+            texlive-pictures texlive-science texlive-bibtex-extra biber
 
       # minted v3 (TeX Live 2025+) shells out to a `latexminted` helper instead
       # of calling pygmentize directly; older TeX Live does not ship it.
