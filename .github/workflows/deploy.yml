@@ -1,0 +1,75 @@
+name: 构建并发布站点
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  MDBOOK_VERSION: '0.4.52'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pandoc / TeX Live / poppler
+        run: |
+          sudo apt-get update
+          # --no-install-recommends keeps the install lean, so everything
+          # preamble.tex loads is listed explicitly:
+          #   biblatex        -> texlive-bibtex-extra
+          #   ctex + fandol 字体 -> texlive-lang-chinese
+          #   tcolorbox/minted/standalone/cleveref/enumitem -> texlive-latex-extra
+          #   tikz/pgfplots   -> texlive-pictures
+          #   empheq          -> texlive-science
+          sudo apt-get install -y --no-install-recommends \
+            pandoc poppler-utils python3-pygments latexmk \
+            texlive-xetex texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-lang-chinese \
+            texlive-pictures texlive-science texlive-bibtex-extra biber
+
+      # minted v3 (TeX Live 2025+) shells out to a `latexminted` helper instead
+      # of calling pygmentize directly; older TeX Live does not ship it.
+      - name: 补齐 minted 辅助程序
+        run: command -v latexminted || pipx install latexminted || true
+
+      - name: 安装 mdBook
+        run: |
+          url="https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfL "$url" | sudo tar -xz -C /usr/local/bin mdbook
+          mdbook --version
+
+      - name: 构建
+        run: site/build.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/book
+
+      - name: 保留 PDF 供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcpp-for-dbd-pdf
+          path: site/build/pdf/main.pdf
+          if-no-files-found: warn
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
